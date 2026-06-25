@@ -849,70 +849,108 @@ async function importarPDF(file){
 }
 
 function parsePresupuesto(lines){
-  const text=lines.join('\n');
-  const out={capitulos:[],encontrado:[],noEncontrado:[]};
-  const AMT=/(\d{1,3}(?:\.\d{3})*,\d{2})/;
-  const skip=/TOTAL|I\.?\s*V\.?\s*A|HONORAR|TASA|ICIO|COSTE|RESUMEN|CAP\.|PRESUPUESTO|MEJORA|SISTEMA|CLIENTE|ACTUACI[ÓO]N|FECHA|EJECUCI/i;
+  const out={capitulos:[],encontrado:[],noEncontrado:[],avisos:[]};
+  const full=lines.join('\n');
 
-  // --- Capítulos: dentro del bloque "RESUMEN PRESUPUESTOS" → "TOTAL EJECUCIÓN MATERIAL" ---
-  // Maneja filas en una línea ("01 NOMBRE 1.234,56") y partidas ("NOMBRE" / "02 1.234,56").
+  // --- Localizar el bloque "RESUMEN PRESUPUESTOS" ... "TOTAL EJECUCIÓN MATERIAL" ... "COSTE TOTAL ... COMUNIDAD" ---
   let bi=lines.findIndex(l=>/RESUMEN\s+PRESUPUESTOS/i.test(l));
   if(bi<0) bi=lines.findIndex(l=>/CAP\.?\s+MEJORA|\bCAP[ÍI]TULO/i.test(l));
   let ei=-1; for(let i=(bi<0?0:bi)+1;i<lines.length;i++){ if(/EJECUCI[ÓO]N\s+MATERIAL/i.test(lines[i])){ ei=i; break; } }
-  const block=(bi>=0&&ei>bi)?lines.slice(bi+1,ei):lines;
+  let fe=-1; for(let i=(ei<0?(bi<0?0:bi):ei)+1;i<lines.length;i++){ if(/COSTE\s+TOTAL\s+DE\s+ACTUACI[ÓO]N\s+PARA\s+LA\s+COMUNIDAD|IMPORTE\s+TOTAL\s+A\s+FINANCIAR/i.test(lines[i])){ fe=i; break; } }
+
+  // --- Capítulos (solo dentro del resumen). Maneja nombre partido en varias líneas y nº de capítulo pegado. ---
+  const capBlock=(bi>=0&&ei>bi)?lines.slice(bi+1,ei):lines;
+  const skipRow=/^(TOTAL|SUBTOTAL|RESUMEN|CAP[IÍ]TULO\b|CAP\.|PRESUPUESTO|COSTE|HONORARIOS?|TASAS?|ICIO|I\.?\s*V\.?\s*A|EJECUCI[ÓO]N|MEJORA\s+[A-ZÁÉÍÓÚ]\s*$|NOTAS?\b)/i;
   let pending='';
-  block.forEach(l=>{
-    const m=l.match(/^(\d{1,2})\s+(.*?)\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?$/);
-    if(m){
-      let nombre=m[2].replace(/\s+/g,' ').trim();
-      const imp=numES(m[3]);
-      if(nombre.length<3) nombre=pending;
-      if(nombre && nombre.length>=3 && !skip.test(nombre) && imp>0) out.capitulos.push({nombre,importe:imp});
+  capBlock.forEach(raw=>{
+    const l=String(raw).replace(/\s+/g,' ').trim(); if(!l) return;
+    const am=l.match(/(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?$/);
+    if(am){
+      const imp=numES(am[1]);
+      const name=l.slice(0,am.index).replace(/^(\d{1,2})(?=\s|$)/,'').replace(/\s+/g,' ').trim();
+      const full2=((pending?pending+' ':'')+name).replace(/\s+/g,' ').trim();
       pending='';
-    } else if(/^[A-Za-zÁÉÍÓÚÑ]/.test(l) && !AMT.test(l) && !skip.test(l)){
-      pending=l.trim();
+      if(full2.length>=3 && !skipRow.test(full2) && imp>0) out.capitulos.push({nombre:full2,importe:imp});
+    } else if(/[A-Za-zÁÉÍÓÚÑ]/.test(l) && !skipRow.test(l)){
+      const nm=l.replace(/^(\d{1,2})(?=\s|$)/,'').replace(/\s+/g,' ').trim();
+      if(nm.length>=2) pending=(pending?pending+' ':'')+nm;
     }
   });
-  // quitar duplicados
   const seen=new Set(); out.capitulos=out.capitulos.filter(c=>{const k=c.nombre+'|'+c.importe; if(seen.has(k))return false; seen.add(k); return true;});
 
-  const find=(re)=>{ const m=text.match(re); return m?m:null; };
+  // --- Económico: SOLO dentro del bloque resumen (evita los "I.V.A." de las páginas de detalle) ---
+  const econLines=(bi>=0)?lines.slice(bi,(fe>bi?fe+3:Math.min(lines.length,(ei>bi?ei:bi)+50))):lines;
+  const text=econLines.join('\n');
+  const grab=(re,t)=>{const m=(t||text).match(re);return m?numES(m[1]):null;};
   let m;
-  if(m=find(/EJECUCI[ÓO]N\s+MATERIAL[^\d]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i)) out.pem=numES(m[1]);
-  // IVA: % anclado a "I.V.A." (pueden ir en líneas separadas). 1º = obra, el primero distinto = honorarios
-  const ivas=[...text.matchAll(/I\.?\s*V\.?\s*A\.?[\s.]*?(\d{1,2})\s*%/gi)].map(x=>+x[1]);
-  if(ivas[0]!=null) out.ivaObra=ivas[0];
-  const ivH=ivas.find(v=>v!==out.ivaObra); out.ivaHon=(ivH!=null?ivH:(ivas[1]!=null?ivas[1]:undefined));
-  if(m=find(/HONORARIOS\s+T[ÉE]CNICOS[^\d]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i)) out.honTec=numES(m[1]);
-  // Tasas: el % seguido de un importe (ignora "Bonificado al 75%")
-  if(m=find(/TASAS[\s\S]{0,140}?(\d{1,2}(?:,\d+)?)\s*%\s+(\d{1,3}(?:\.\d{3})*,\d{2})/i)){ out.tasasPct=numES(m[1]); out.tasasEur=numES(m[2]); }
-  // bonificación del ICIO (p. ej. "Bonificado al 75% (ZETU)")
-  if(m=find(/Bonificad[oa]\s+al\s+(\d{1,3})\s*%/i)) out.tasasBonif=numES(m[1]);
-  // Dirección del CLIENTE (no la de la empresa)
-  if(m=find(/CLIENTE\s*:?\s*(.+?)\s*(?:PRESUPUESTO|FECHA|\n|$)/i)){
+  out.pem=grab(/EJECUCI[ÓO]N\s+MATERIAL\D*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  // IVA obra = el que acompaña al PEM/CONTRATA ; IVA honorarios = el que sigue a "HONORARIOS"
+  const ivO=text.match(/EJECUCI[ÓO]N\s+MATERIAL[\s\S]{0,90}?(\d{1,2})\s*%/i)||text.match(/I\.?\s*V\.?\s*A\.?[\s.]*?(\d{1,2})\s*%/i);
+  if(ivO) out.ivaObra=+ivO[1];
+  const ivH=text.match(/HONORARIOS[\s\S]{0,140}?I\.?\s*V\.?\s*A\.?[\s.]*?(\d{1,2})\s*%/i);
+  if(ivH) out.ivaHon=+ivH[1];
+  if(out.ivaHon==null){ const a=[...text.matchAll(/I\.?\s*V\.?\s*A\.?[\s.]*?(\d{1,2})\s*%/gi)].map(x=>+x[1]); const h=a.find(v=>v!==out.ivaObra); if(h!=null) out.ivaHon=h; }
+  out.honTec=grab(/HONORARIOS\s+T[ÉE]CNICOS[^\d]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  out.honAgente=grab(/HONORARIOS\s+AGENTE\s+REHABILITADOR[^\d]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  if(out.honAgente==null && /HONORARIOS\s+AGENTE\s+REHABILITADOR\s*-\s*€/i.test(text)) out.honAgente=0;
+  out.totalHonorarios=grab(/TOTAL\s+HONORARIOS\D*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  if(out.honTec==null && out.totalHonorarios!=null){ const iv=(out.ivaHon!=null?out.ivaHon:21)/100; out.honTec=+(((out.totalHonorarios)-(out.honAgente||0)*(1+iv))/(1+iv)).toFixed(2); out.avisos.push('Honorarios técnicos estimados a partir del total de honorarios del PDF.'); }
+  out.subvencionablePDF=grab(/SUBVENCIONABLE[S]?\D*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  out.costeTotalPDF=grab(/COSTE\s+TOTAL\s+DE\s+ACTUACI[ÓO]N\s+PARA\s+LA\s+COMUNIDAD\D*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  // Tasas: % seguido de importe (ignora "Bonificado al 75%")
+  if(m=text.match(/TASAS[\s\S]{0,160}?(\d{1,2}(?:,\d+)?)\s*%\s+(\d{1,3}(?:\.\d{3})*,\d{2})/i)){ out.tasasPct=numES(m[1]); out.tasasEur=numES(m[2]); }
+  if(m=text.match(/Bonificad[oa]\s+al\s+(\d{1,3})\s*%/i)) out.tasasBonif=numES(m[1]);
+
+  // --- Dirección / viviendas (en todo el documento) ---
+  if(m=full.match(/CLIENTE\s*:?\s*(.+?)\s*(?:PRESUPUESTO|FECHA|\n|$)/i)){
     out.direccion=m[1].replace(/\s+/g,' ').trim().replace(/^CL\b\.?/i,'Calle').replace(/\s*-\s*/g,', ');
-  } else if(m=find(/\b(?:C\/|CALLE|AVDA\.?|AVENIDA|PLAZA|PASEO|Pº|CTRA\.?|CAMINO)\s+[A-Za-zÁÉÍÓÚÑáéíóúñ0-9 .,ºª\/-]{3,55}?\s*\d{1,4}\b/i)){
+  } else if(m=full.match(/\b(?:C\/|CALLE|AVDA\.?|AVENIDA|PLAZA|PASEO|Pº|CTRA\.?|CAMINO)\s+[A-Za-zÁÉÍÓÚÑáéíóúñ0-9 .,ºª\/-]{3,55}?\s*\d{1,4}\b/i)){
     out.direccion=m[0].replace(/\s+/g,' ').trim();
   }
-  if(m=find(/(\d{1,4})\s*VIVIENDAS?/i)||find(/N[ºo°]?\.?\s*(?:DE\s+)?VIVIENDAS?\D{0,6}(\d{1,4})/i)) out.numViv=+(m[1]);
-  if(m=find(/(\d{1,4})\s*LOCALES?/i)) out.numLocales=+(m[1]);
-  if(m=find(/([\d]{1,3}(?:\.\d{3})*(?:,\d+)?)\s*m2?\D{0,14}LOCAL/i)||find(/LOCAL\D{0,14}([\d]{1,3}(?:\.\d{3})*(?:,\d+)?)\s*m/i)) out.supLocales=numES(m[1]);
-  // clasificar capítulos de accesibilidad (ascensor, rampa…) y zona del PDF
+  if(m=full.match(/(\d{1,4})\s*VIVIENDAS?/i)||full.match(/N[ºo°]?\.?\s*(?:DE\s+)?VIVIENDAS?\D{0,6}(\d{1,4})/i)||full.match(/CANTIDAD\s+DE\s+VECINOS\D{0,6}(\d{1,4})/i)) out.numViv=+(m[1]);
+  if(m=full.match(/(\d{1,4})\s*LOCALES?/i)) out.numLocales=+(m[1]);
+  if(m=full.match(/([\d]{1,3}(?:\.\d{3})*(?:,\d+)?)\s*m2?\D{0,14}LOCAL/i)||full.match(/LOCAL\D{0,14}([\d]{1,3}(?:\.\d{3})*(?:,\d+)?)\s*m/i)) out.supLocales=numES(m[1]);
+
+  // --- Clasificar accesibilidad y zona ---
   const ACC_RE=/ASCENSOR|RAMPA|SALVAESCALERA|PLATAFORMA|MONTACARGAS|ACCESIBILIDAD|VIDEOPORTER/i;
   out.capitulos.forEach(c=>{ c.acc=ACC_RE.test(c.nombre); });
+  if(/\bZETU\b/i.test(full)) out.zona='ZETU'; else if(/\bZIRE\b/i.test(full)) out.zona='ZIRE';
+
+  // --- RECONCILIACIÓN: la suma de capítulos DEBE cuadrar con el PEM del PDF ---
+  let sumCap=out.capitulos.reduce((a,c)=>a+c.importe,0);
+  if(out.pem!=null && Math.abs(sumCap-out.pem)>1){
+    if(sumCap<out.pem){
+      out.capitulos.push({nombre:'Otras partidas (ajuste al PEM del presupuesto)',importe:+(out.pem-sumCap).toFixed(2),acc:false});
+      out.avisos.push('La suma de capítulos detectados ('+fmtEUR(sumCap)+') era menor que el PEM del PDF ('+fmtEUR(out.pem)+'). Se añadió una partida de ajuste para que cuadre — revisa que no falte ningún capítulo.');
+    } else {
+      out.avisos.push('⚠️ La suma de capítulos ('+fmtEUR(sumCap)+') SUPERA el PEM del PDF ('+fmtEUR(out.pem)+'). Puede haber un capítulo duplicado: revísalo a mano.');
+    }
+    sumCap=out.capitulos.reduce((a,c)=>a+c.importe,0);
+  }
   out.accPEM=out.capitulos.filter(c=>c.acc).reduce((a,c)=>a+c.importe,0);
   out.enPEM=out.capitulos.filter(c=>!c.acc).reduce((a,c)=>a+c.importe,0);
-  if(/\bZETU\b/i.test(text)) out.zona='ZETU'; else if(/\bZIRE\b/i.test(text)) out.zona='ZIRE';
-  // resumen legible
-  const pem=out.pem||out.capitulos.reduce((a,c)=>a+c.importe,0);
-  if(out.capitulos.length) out.encontrado.push(out.capitulos.length+' capítulos (PEM '+fmtEUR(pem)+')'); else out.noEncontrado.push('capítulos');
-  if(out.accPEM>0) out.encontrado.push('ascensor/accesibilidad '+fmtEUR(out.accPEM)+' → bloque accesibilidad (75%)');
+
+  // --- VERIFICACIÓN: total reconstruido vs total del PDF ---
+  if(out.costeTotalPDF!=null && out.pem!=null){
+    const io=(out.ivaObra!=null?out.ivaObra:10)/100, ih=(out.ivaHon!=null?out.ivaHon:21)/100;
+    const tas=(out.tasasEur!=null?out.tasasEur:out.pem*((out.tasasPct||0)/100));
+    const recon=out.pem*(1+io)+(out.honTec||0)*(1+ih)+(out.honAgente||0)*(1+ih)+tas;
+    out.checkTotal={recon:+recon.toFixed(2),pdf:out.costeTotalPDF,ok:Math.abs(recon-out.costeTotalPDF)<=2};
+    if(!out.checkTotal.ok) out.avisos.push('⚠️ El coste total reconstruido ('+fmtEUR(recon)+') no coincide con el del PDF ('+fmtEUR(out.costeTotalPDF)+'). Revisa honorarios, IVA o tasas antes de generar el informe.');
+  }
+
+  // --- Resumen legible ---
+  const pem=out.pem||sumCap;
+  out.capitulos.length?out.encontrado.push(out.capitulos.length+' capítulos (PEM '+fmtEUR(pem)+')'):out.noEncontrado.push('capítulos');
+  if(out.accPEM>0) out.encontrado.push('ascensor/accesibilidad '+fmtEUR(out.accPEM)+' → 75%');
   if(out.zona) out.encontrado.push('zona '+out.zona+' (del PDF)');
   out.ivaObra!=null?out.encontrado.push('IVA obra '+out.ivaObra+'%'):out.noEncontrado.push('IVA obra');
+  out.ivaHon!=null?out.encontrado.push('IVA honorarios '+out.ivaHon+'%'):out.noEncontrado.push('IVA honorarios');
   out.honTec!=null?out.encontrado.push('honorarios '+fmtEUR(out.honTec)):out.noEncontrado.push('honorarios');
   out.tasasPct!=null?out.encontrado.push('tasas '+(out.tasasEur!=null?fmtEUR(out.tasasEur)+' ('+out.tasasPct+'%'+(out.tasasBonif!=null?' bonif. '+out.tasasBonif+'%':'')+')':out.tasasPct+'%')):out.noEncontrado.push('tasas');
   out.direccion?out.encontrado.push('dirección'):out.noEncontrado.push('dirección');
   out.numViv?out.encontrado.push(out.numViv+' viviendas'):out.noEncontrado.push('nº viviendas');
+  if(out.checkTotal&&out.checkTotal.ok) out.encontrado.push('✓ el total cuadra con el PDF ('+fmtEUR(out.costeTotalPDF)+')');
   return out;
 }
 
@@ -920,6 +958,7 @@ function revisar(d){
   const status=$('#impStatus'); status.classList.add('show');
   let html='<b>✔️ Detectado:</b> '+(d.encontrado.length?d.encontrado.join(' · '):'<i>nada reconocible</i>');
   if(d.noEncontrado.length) html+='<br><span class="hint">No detectado (rellénalo a mano): '+d.noEncontrado.join(', ')+'.</span>';
+  if(d.avisos&&d.avisos.length) html+='<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#fff7e6;border:1px solid #f0c36d;color:#7a5b00;font-size:13px">⚠️ <b>Revisa esto:</b><br>'+d.avisos.map(a=>'· '+a).join('<br>')+'</div>';
   if(d.capitulos.length) html+='<div class="cap-list">'+d.capitulos.map(c=>'· '+c.nombre+' — '+fmtEUR(c.importe)+(c.acc?' <b style="color:#9B2D2D">→ accesibilidad</b>':'')).join('<br>')+'</div>';
   html+='<div style="margin-top:10px"><button type="button" class="btn-primary btn-sm" id="btnAplicarImp">Aplicar al formulario</button></div>';
   status.innerHTML=html;
@@ -935,6 +974,7 @@ function aplicarImport(d){
   // ===== Económico FIEL al PDF: TODOS los capítulos al PEM; honorarios/IVA/tasas tal cual =====
   set('ivaObra',d.ivaObra); set('ivaHon',d.ivaHon);
   set('honTec', d.honTec!=null?d.honTec.toFixed(2):null);
+  set('honAgente', d.honAgente!=null?d.honAgente.toFixed(2):null);
   if(d.capitulos.length){ $('#capitulos').innerHTML=''; d.capitulos.forEach(c=>addCapitulo(c.nombre,c.importe.toFixed(2))); }
   const pemImp=d.pem||d.capitulos.reduce((a,c)=>a+c.importe,0);
   // Tasas: importe real del PDF (con bonificación ICIO) -> % efectivo sobre el PEM COMPLETO
