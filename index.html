@@ -1,0 +1,1431 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Calculadora de subvenciones a la rehabilitación de edificios — Proyecton Global Energy SL.">
+<title>Calculadora de Subvenciones · Proyecton</title>
+<!--
+  ============================================================================
+  CALCULADORA DE SUBVENCIONES · PROYECTON GLOBAL ENERGY SL (CIF B86608312)
+  Archivo único autocontenido (HTML + CSS + JS). Funciona a doble clic.
+  ----------------------------------------------------------------------------
+  FUENTES (ver cuantias.json y README.md):
+   - PLAN ESTATAL: RD 326/2026, de 22 de abril (BOE-A-2026-8872), Plan Estatal
+       de Vivienda 2026-2030. Eficiencia energética: 40%->7.500 / 60%->13.000 /
+       80%->20.500 €/viv (locales 90/145/228 €/m²). Accesibilidad: 13.000 /
+       18.000 (>65 o discapacidad) / 22.000 (ascensor/rampas) €/viv.
+   - PLAN REHABILITA (CAM): energía -> % según zona (ZETU 60/70%, ZIRE 50/60%),
+       tope 8.000 €/viv. Accesibilidad -> 60% del coste, tope 9.000 €/viv + 90 €/m² local.
+   - CAE: estimación de mercado (editable).
+   - TOPE: subvenciones limitadas al 100% del coste subvencionable correspondiente.
+  Paleta de marca: granate #9B2D2D + gris carbón #3a3a3a (logo Revestimientos Proyecton).
+  ============================================================================
+-->
+<style>
+  /* ===== Paleta corporativa (logo Proyecton: granate + carbón) ===== */
+  :root{
+    --granate:#9B2D2D;
+    --granate-osc:#7a2222;
+    --granate-med:#c75d52;
+    --granate-cl:#f7ecea;
+    --carbon:#3a3a3a;
+    --carbon-osc:#262626;
+    --carbon-cl:#eef0f1;
+    --oro:#b08968;
+    --gris:#5b6770;
+    --gris-cl:#f5f6f7;
+    --linea:#e1e4e7;
+    --ok:#3f9c4a;
+    --warn:#dd8a26;
+    --bad:#c0392b;
+    --texto:#2b2b2b;
+    --blanco:#ffffff;
+    --sombra:0 1px 3px rgba(0,0,0,.07),0 8px 24px rgba(0,0,0,.06);
+    --radio:12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,system-ui,sans-serif;
+    color:var(--texto);background:var(--gris-cl);line-height:1.5;font-size:15px;
+  }
+  h1,h2,h3,h4{margin:0;font-weight:700;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px 64px;}
+
+  /* foco accesible */
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{
+    outline:3px solid var(--granate-med);outline-offset:2px;border-radius:6px;
+  }
+  .skip{position:absolute;left:-999px;top:auto;background:var(--granate);color:#fff;padding:10px 16px;z-index:100;border-radius:0 0 8px 0;}
+  .skip:focus{left:0;}
+  .visually-hidden{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+
+  /* ===== Cabecera (blanca, logo real) ===== */
+  header.app{background:#fff;border-bottom:4px solid var(--granate);box-shadow:0 2px 10px rgba(0,0,0,.05);}
+  header.app .wrap{display:flex;align-items:center;gap:18px;padding-top:14px;padding-bottom:14px;}
+  .logo-img{height:58px;width:auto;flex:0 0 auto;}
+  .logo-fallback{display:none;width:56px;height:56px;border-radius:12px;background:var(--granate);color:#fff;align-items:center;justify-content:center;font-weight:800;font-size:18px;letter-spacing:1px;flex:0 0 auto;}
+  .brand h1{font-size:19px;color:var(--carbon);letter-spacing:.2px;}
+  .brand p{margin:2px 0 0;font-size:12px;color:var(--granate);font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+  .topbtns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+
+  /* ===== Botones ===== */
+  button{font-family:inherit;font-size:14px;cursor:pointer;border:none;border-radius:8px;padding:9px 15px;font-weight:600;transition:background .15s,transform .05s;}
+  button:active{transform:translateY(1px);}
+  .btn-primary{background:var(--granate);color:#fff;}
+  .btn-primary:hover{background:var(--granate-osc);}
+  .btn-outline{background:#fff;color:var(--granate);border:1.5px solid var(--granate);}
+  .btn-outline:hover{background:var(--granate-cl);}
+  .btn-ghost{background:var(--carbon-cl);color:var(--carbon);}
+  .btn-ghost:hover{background:#e2e5e7;}
+  .btn-sm{padding:7px 12px;font-size:13px;}
+  .btn-danger{background:#fff;color:var(--bad);border:1px solid #e7c3bd;}
+  .btn-danger:hover{background:#fbeae8;}
+
+  /* ===== Tarjetas / secciones ===== */
+  .card{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);box-shadow:var(--sombra);margin-top:20px;overflow:hidden;}
+  .card > .head{background:var(--granate);color:#fff;padding:12px 18px;font-size:15.5px;font-weight:700;display:flex;align-items:center;gap:10px;}
+  .card > .head .num{background:rgba(255,255,255,.22);width:25px;height:25px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;}
+  .card > .body{padding:18px;}
+  .sub{color:var(--carbon);font-weight:700;font-size:14px;margin:18px 0 10px;display:flex;align-items:center;gap:8px;}
+  .sub::before{content:"";width:5px;height:16px;border-radius:3px;background:var(--granate);display:inline-block;}
+  .sub:first-child{margin-top:0;}
+
+  /* ===== Formularios ===== */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:13px;font-weight:600;color:var(--carbon);}
+  .field .hint{font-size:11.5px;color:#8a949c;font-weight:400;}
+  input,select{font-family:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--linea);border-radius:8px;background:#fff;color:var(--texto);width:100%;}
+  input:focus,select:focus{outline:none;border-color:var(--granate);box-shadow:0 0 0 3px var(--granate-cl);}
+  input.err{border-color:var(--bad);background:#fdf3f2;}
+  .errmsg{color:var(--bad);font-size:12px;font-weight:600;display:none;}
+  .errmsg.show{display:block;}
+
+  .checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;}
+  .chk{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--linea);border-radius:8px;cursor:pointer;font-size:13.5px;background:#fff;}
+  .chk:hover{border-color:var(--granate);}
+  .chk input{width:auto;}
+  .chk.on{background:var(--granate-cl);border-color:var(--granate);}
+
+  #capitulos .crow{display:grid;grid-template-columns:1fr 160px 44px;gap:8px;align-items:center;margin-bottom:8px;}
+  #capitulos .crow input{margin:0;}
+  .rm{background:#fbeae8;color:var(--bad);border-radius:8px;width:42px;height:40px;font-size:18px;line-height:1;padding:0;}
+
+  .accbox{border:1px dashed var(--linea);border-radius:10px;padding:14px;background:#fafbfc;margin-top:6px;}
+
+  /* ===== Toggle modo ===== */
+  body.modo-informe .solo-edicion{display:none;}
+  body:not(.modo-informe) #informe{display:none;}
+
+  .toolbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--linea);padding:10px 0;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:4px;}
+  .toolbar .wrap{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:0;padding-bottom:0;}
+  .pill{font-size:12px;background:var(--granate-cl);color:var(--granate-osc);padding:5px 12px;border-radius:20px;font-weight:700;}
+
+  /* ============ INFORME — estilo "página" ============ */
+  #informe{background:transparent;border:none;box-shadow:none;}
+  .page{background:#fff;max-width:820px;margin:18px auto;border:1px solid var(--linea);border-radius:10px;box-shadow:var(--sombra);padding:26px 30px;}
+  .doc-head{display:flex;align-items:center;gap:16px;border-bottom:3px solid var(--granate);padding-bottom:14px;}
+  .doc-head .logo-img{height:50px;}
+  .doc-head h2{color:var(--carbon);font-size:20px;line-height:1.15;}
+  .doc-head .who{margin-left:auto;text-align:right;font-size:11.5px;color:var(--gris);}
+  .doc-head .who b{color:var(--granate);display:block;font-size:13px;}
+  .doc-sub{font-size:13px;color:var(--carbon);margin:10px 0 2px;}
+  .doc-sub b{color:var(--granate);}
+
+  .meta-edif{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px 16px;font-size:12px;margin:12px 0 4px;border:1px solid var(--linea);border-radius:10px;padding:12px 14px;background:var(--gris-cl);}
+  .meta-edif div span{color:var(--gris);display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;}
+  .meta-edif div b{font-size:13.5px;color:var(--carbon);}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 6px;}
+  .kpi{border-radius:12px;padding:14px;color:#fff;}
+  .kpi .lbl{font-size:11px;opacity:.94;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+  .kpi .val{font-size:22px;font-weight:800;margin-top:5px;line-height:1.05;}
+  .kpi .sml{font-size:10.5px;opacity:.92;margin-top:3px;}
+  .kpi.coste{background:linear-gradient(135deg,var(--carbon),var(--carbon-osc));}
+  .kpi.subv{background:linear-gradient(135deg,var(--granate),var(--granate-osc));}
+  .kpi.resto{background:linear-gradient(135deg,var(--granate-med),var(--granate));}
+  .kpi.via{background:linear-gradient(135deg,#6a6f73,#4a4f53);}
+  @media(max-width:620px){.kpis{grid-template-columns:repeat(2,1fr);}}
+
+  .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:8px;align-items:stretch;}
+  @media(max-width:620px){.hero{grid-template-columns:1fr;}}
+  .semaforo{display:flex;align-items:center;gap:14px;border-radius:12px;padding:14px 16px;font-weight:700;}
+  .semaforo .dot{width:20px;height:20px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 5px rgba(0,0,0,.06);}
+  .semaforo.verde{background:#eaf6ec;color:#2f7d3a;} .semaforo.verde .dot{background:var(--ok);}
+  .semaforo.ambar{background:#fdf3e3;color:#a96e16;} .semaforo.ambar .dot{background:var(--warn);}
+  .semaforo.rojo{background:#fbeae8;color:var(--bad);} .semaforo.rojo .dot{background:var(--bad);}
+  .semaforo small{font-weight:400;display:block;opacity:.9;font-size:11.5px;}
+
+  /* charts */
+  .charts{display:grid;grid-template-columns:1fr 150px;gap:16px;align-items:center;margin-top:14px;}
+  @media(max-width:620px){.charts{grid-template-columns:1fr;}}
+  .stack{display:flex;height:40px;border-radius:9px;overflow:hidden;border:1px solid var(--linea);}
+  .stack > div{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800;min-width:0;overflow:hidden;white-space:nowrap;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:11px;font-size:11.5px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  .donut-wrap{text-align:center;}
+  .donut-wrap .cap{font-size:11px;color:var(--gris);margin-top:2px;}
+
+  /* tablas */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px;}
+  @media(max-width:680px){.grid-2{grid-template-columns:1fr;}}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px;}
+  caption{text-align:left;font-weight:700;color:var(--carbon);font-size:13px;padding:4px 0;}
+  th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--linea);}
+  thead th{background:var(--granate);color:#fff;font-weight:700;font-size:11.5px;}
+  tbody tr:nth-child(even){background:var(--gris-cl);}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  tr.total td{background:var(--granate-cl);font-weight:800;border-top:2px solid var(--granate);color:var(--granate-osc);}
+  tr.subtot td{font-weight:700;}
+  .formula{display:none;font-size:11px;color:var(--gris);font-style:italic;font-weight:400;}
+  body.show-formulas .formula,.formula.open{display:block;margin-top:2px;}
+  .info{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--granate-cl);color:var(--granate);font-size:10px;font-weight:800;cursor:pointer;margin-left:5px;border:none;padding:0;}
+  .info:hover{background:var(--granate);color:#fff;}
+
+  .avisobox{display:flex;gap:11px;background:#fdf3e3;border:1px solid #f0d9b0;border-radius:10px;padding:11px 13px;margin-top:12px;font-size:12.5px;color:#7a5a1e;}
+  .avisobox.acc{background:var(--carbon-cl);border-color:#d4d8db;color:var(--carbon);}
+  .avisobox .ic{font-size:18px;flex:0 0 auto;}
+  .twocol{column-count:2;column-gap:22px;}
+  @media(max-width:620px){.twocol{column-count:1;}}
+  .reqlist{margin:4px 0 0;padding-left:18px;font-size:12px;}
+  .reqlist li{margin-bottom:4px;break-inside:avoid;}
+  .legalbox{font-size:10.5px;color:var(--gris);border:1px dashed var(--linea);border-radius:10px;padding:10px 12px;margin-top:14px;background:#fafbfc;}
+  .doc-foot{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;border-top:2px solid var(--granate);margin-top:18px;padding-top:10px;font-size:11px;color:var(--gris);}
+  .doc-foot b{color:var(--granate);}
+
+  /* panel de referencia */
+  #refPanel summary{list-style:none;cursor:pointer;}
+  #refPanel summary::-webkit-details-marker{display:none;}
+  #refPanel summary .car::after{content:"▸ ";}
+  #refPanel[open] summary .car::after{content:"▾ ";}
+  .ref-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:6px;}
+  .ref-line{border:1px solid var(--linea);border-left:4px solid var(--granate);border-radius:10px;padding:10px 12px;background:#fff;}
+  .ref-line.alt{border-left-color:var(--carbon);}
+  .ref-line h4{color:var(--granate);font-size:13px;display:flex;gap:6px;align-items:center;}
+  .ref-line .cubre{font-size:11.5px;color:var(--gris);margin:4px 0 7px;}
+  .ref-line .zz{font-size:11.5px;display:flex;justify-content:space-between;gap:8px;border-top:1px dashed var(--linea);padding-top:6px;}
+  .ref-line .zz b{color:var(--carbon);}
+
+  .saverow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;}
+  .saverow input,.saverow select{width:auto;flex:1;min-width:150px;}
+  .flash{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--carbon);color:#fff;padding:10px 18px;border-radius:24px;font-size:13px;font-weight:600;z-index:99;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;transition:opacity .3s;pointer-events:none;}
+
+  @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;}}
+
+  /* ============ IMPRESIÓN — una página A4 ============ */
+  @media print{
+    #mapZona,.geo-row,details.adv{display:none!important;}
+    @page{size:A4 portrait;margin:10mm;}
+    body{background:#fff;font-size:9.5px;}
+    .toolbar,header.app,.solo-edicion,.no-print,.skip{display:none!important;}
+    body:not(.modo-informe) #informe{display:block;}
+    .wrap{max-width:100%;padding:0;}
+    .page{max-width:100%;margin:0;border:none;box-shadow:none;padding:0;}
+    .kpi .val{font-size:16px;}
+    .kpi{padding:9px;}
+    .doc-head .logo-img{height:38px;}
+    .doc-head h2{font-size:15px;}
+    table{font-size:8.5px;}
+    th,td{padding:3.5px 6px;}
+    .charts{grid-template-columns:1fr 120px;}
+    .stack{height:30px;}
+    body.show-formulas .formula{display:none!important;} /* en PDF, limpio */
+    .kpi,.semaforo,.stack>div,thead th,tr.total td,.card .head,.avisobox{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .page,.kpis,.charts,.hero,.grid-2,table,.legalbox,.doc-foot{break-inside:avoid;}
+  }
+
+  /* detección de zona + mapa */
+  .geo-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:2px 0 10px;}
+  .chip-zona{font-size:13px;font-weight:700;padding:6px 13px;border-radius:20px;background:var(--carbon-cl);color:var(--carbon);}
+  .chip-zona.ok{background:#eaf6ec;color:#2f7d3a;}
+  .chip-zona.warn{background:#fdf3e3;color:#a96e16;}
+  .chip-zona.load{background:var(--granate-cl);color:var(--granate-osc);}
+  .chip-zona .hint{font-weight:400;color:inherit;opacity:.8;}
+  .geo-link{font-size:12.5px;color:var(--granate);font-weight:700;text-decoration:none;margin-left:auto;}
+  .geo-link:hover{text-decoration:underline;}
+  #mapZona{height:280px;border:1px solid var(--linea);border-radius:12px;margin:0 0 12px;overflow:hidden;display:none;}
+  .loc-field{display:none;}
+  /* tarjetas de opción (ahorro / mejora de calificación) */
+  .opt-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;margin-top:4px;}
+  .opt-card{text-align:left;background:#fff;border:1.5px solid var(--linea);border-radius:10px;padding:10px 12px;cursor:pointer;transition:border-color .12s,background .12s;font-family:inherit;}
+  .opt-card:hover{border-color:var(--granate-med);}
+  .opt-card.on{border-color:var(--granate);background:var(--granate-cl);box-shadow:inset 0 0 0 1px var(--granate);}
+  .opt-card .pc{font-size:19px;font-weight:800;color:var(--granate);line-height:1;}
+  .opt-card .ti{font-size:13.5px;font-weight:700;color:var(--carbon);margin-top:3px;}
+  .opt-card .de{font-size:11.5px;color:var(--gris);margin-top:2px;line-height:1.3;}
+  details.adv{border:1px dashed var(--linea);border-radius:10px;padding:4px 14px;margin-top:10px;background:#fafbfc;}
+  details.adv > summary{cursor:pointer;font-weight:700;color:var(--carbon);font-size:13.5px;list-style:none;padding:8px 0;}
+  details.adv > summary::-webkit-details-marker{display:none;}
+  details.adv > summary .car::after{content:"▸ ";}
+  details.adv[open] > summary .car::after{content:"▾ ";}
+
+  /* importador de PDF */
+  .import-banner{background:linear-gradient(120deg,var(--granate),var(--granate-osc));color:#fff;border-radius:var(--radio);padding:16px 18px;margin-top:20px;box-shadow:var(--sombra);}
+  .import-banner h3{font-size:16px;display:flex;align-items:center;gap:8px;}
+  .import-banner p{margin:4px 0 10px;font-size:12.5px;opacity:.92;}
+  .import-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .import-row input[type=file]{flex:1;min-width:200px;background:#fff;color:var(--texto);border-radius:8px;padding:8px;font-size:13px;}
+  .import-status{margin-top:10px;font-size:13px;background:#fff;color:var(--texto);border-radius:8px;padding:0;max-height:0;overflow:hidden;transition:max-height .25s,padding .25s;}
+  .import-status.show{padding:12px 14px;max-height:420px;overflow:auto;}
+  .import-status .cap-list{margin-top:6px;font-size:12px;color:var(--gris);}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
+<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+</head>
+<body class="modo-edicion">
+<a class="skip" href="#contenido">Saltar al contenido</a>
+
+<!-- ============ CABECERA ============ -->
+<header class="app">
+  <div class="wrap">
+    <img class="logo-img" src="https://proyecton.es/wp-content/uploads/2025/08/LOGO_TRANSPARENTE_sombra-scaled.png" alt="Revestimientos Proyecton — Rehabilitación de edificios"
+         onerror="this.style.display='none';document.getElementById('logoFb').style.display='flex';">
+    <div class="logo-fallback" id="logoFb" aria-hidden="true">PGE</div>
+    <div class="brand">
+      <h1>Calculadora de Subvenciones a la Rehabilitación</h1>
+      <p>Proyecton Global Energy</p>
+    </div>
+    <div class="topbtns no-print">
+      <button class="btn-ghost btn-sm" id="btnFormulas" type="button" aria-pressed="false">ƒ Mostrar fórmulas</button>
+      <button class="btn-outline btn-sm" id="btnPDF" type="button">🖨 Exportar PDF</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ BARRA DE HERRAMIENTAS ============ -->
+<div class="toolbar no-print" role="toolbar" aria-label="Acciones del informe">
+  <div class="wrap">
+    <button class="btn-primary" id="btnVerInforme" type="button">📊 Ver informe</button>
+    <button class="btn-outline" id="btnVolver" type="button" style="display:none">✏️ Volver a edición</button>
+    <button class="btn-ghost btn-sm" id="btnEjemplo" type="button">↺ Cargar ejemplo</button>
+    <span class="pill" id="estadoPill" role="status" aria-live="polite">Modo edición</span>
+  </div>
+</div>
+
+<main class="wrap" id="contenido">
+
+  <!-- =================== IMPORTAR PDF =================== -->
+  <section class="import-banner solo-edicion no-print" aria-labelledby="impH">
+    <h3 id="impH">📄 Importar presupuesto en PDF</h3>
+    <p>Sube el PDF del presupuesto de la comunidad y rellenamos el formulario por ti (capítulos, importes, IVA, honorarios, tasas y datos del edificio que se detecten). Revisa siempre antes de generar el informe.</p>
+    <div class="import-row">
+      <label class="visually-hidden" for="pdfFile">Archivo PDF del presupuesto</label>
+      <input type="file" id="pdfFile" accept="application/pdf">
+      <button type="button" class="btn-ghost btn-sm" id="btnImportPDF">Leer PDF</button>
+    </div>
+    <div class="import-status" id="impStatus" aria-live="polite"></div>
+  </section>
+
+  <!-- =================== FORMULARIO =================== -->
+  <form id="form" class="solo-edicion" autocomplete="off" novalidate aria-label="Datos del presupuesto">
+
+    <!-- 1 · Edificio -->
+    <section class="card" aria-labelledby="h1e">
+      <h2 class="head" id="h1e"><span class="num" aria-hidden="true">1</span> 🏢 Datos del edificio</h2>
+      <div class="body">
+        <div class="grid">
+          <div class="field" style="grid-column:1/-1">
+            <label for="direccion">Dirección <abbr title="obligatorio">*</abbr></label>
+            <input id="direccion" type="text" placeholder="Calle Andrés Torrejón 26" aria-required="true" aria-describedby="err-direccion">
+            <span class="errmsg" id="err-direccion" data-for="direccion" role="alert">Indica la dirección del edificio.</span>
+            <div class="geo-row" style="margin-top:8px">
+              <button type="button" class="btn-primary btn-sm" id="btnCatastro">📋 Rellenar datos del Catastro</button>
+              <span class="chip-zona" id="catastroChip">Sin consultar</span>
+            </div>
+          </div>
+          <div class="field"><label for="municipio">Municipio</label><input id="municipio" type="text" value="Madrid" placeholder="Madrid"><span class="hint">Lo usa el Catastro (cámbialo si no es Madrid capital).</span></div>
+          <div class="field"><label for="distrito">Distrito</label><input id="distrito" type="text" list="distritosList" placeholder="Escribe o elige…" autocomplete="off"><datalist id="distritosList"></datalist><span class="hint">Opcional (Madrid capital). Texto libre.</span></div>
+          <div class="field">
+            <label for="anio">Año de construcción</label>
+            <input id="anio" type="number" min="1800" max="2026" placeholder="1975" aria-describedby="err-anio">
+            <span class="errmsg" id="err-anio" data-for="anio" role="alert">Año no válido.</span>
+          </div>
+          <div class="field">
+            <label for="numViv">Nº de viviendas <abbr title="obligatorio">*</abbr></label>
+            <input id="numViv" type="number" min="1" step="1" placeholder="22" aria-required="true" aria-describedby="err-numViv">
+            <span class="errmsg" id="err-numViv" data-for="numViv" role="alert">Debe ser 1 o más.</span>
+          </div>
+          <div class="field"><label for="supTotal">Superficie construida total (m²)</label><input id="supTotal" type="number" min="0" step="0.01" placeholder="2500"></div>
+          <div class="field"><label for="supViv">Superficie de viviendas (m²)</label><input id="supViv" type="number" min="0" step="0.01" placeholder="1900"></div>
+          <div class="field">
+            <label for="tieneLocales">¿El edificio tiene locales comerciales?</label>
+            <select id="tieneLocales"><option value="no" selected>No</option><option value="si">Sí</option></select>
+            <span class="hint">Si hay locales, indica cuántos y sus m² (afecta a la ayuda de locales).</span>
+          </div>
+          <div class="field loc-field"><label for="numLocales">Nº de locales</label><input id="numLocales" type="number" min="0" step="1" placeholder="0"></div>
+          <div class="field loc-field">
+            <label for="supLocales">Superficie de locales (m²)</label>
+            <input id="supLocales" type="number" min="0" step="0.01" placeholder="0" aria-describedby="hint-supLocales">
+            <span class="hint" id="hint-supLocales">m² de los locales (para el tope de ayuda).</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 · Urbanística y ahorro -->
+    <section class="card" aria-labelledby="h2e">
+      <h2 class="head" id="h2e"><span class="num" aria-hidden="true">2</span> 📍 Clasificación urbanística y ahorro energético</h2>
+      <div class="body">
+        <div class="sub" style="margin-top:0">Detección automática de zona (geoportal de Madrid)</div>
+        <div class="geo-row">
+          <button type="button" class="btn-primary btn-sm" id="btnDetectarZona">📍 Detectar zona desde la dirección</button>
+          <span class="chip-zona" id="zonaChip">Sin detectar</span>
+          <a class="geo-link" id="geoLink" href="https://geoportal.madrid.es/IDEAM_WBGEOPORTAL/visor_din.iam?clave=SUBVENCIONES" target="_blank" rel="noopener">Visor oficial ↗</a>
+        </div>
+        <div id="mapZona" role="img" aria-label="Mapa de localización del edificio"></div>
+
+        <div class="grid">
+          <div class="field">
+            <label for="zona">Zona urbanística <span class="hint" style="font-weight:400">— fija el % de Rehabilita</span></label>
+            <select id="zona" aria-describedby="hint-zona">
+              <option value="ZIRE" selected>ZIRE · Zona de Impulso a la Rehabilitación Energética</option>
+              <option value="ZETU">ZETU · Zona de Especial Transformación Urbana</option>
+              <option value="NINGUNA">Fuera de ámbito (NO se aplica Rehabilita)</option>
+            </select>
+            <span class="hint" id="hint-zona">Si está fuera de ZETU/ZIRE, el Plan Rehabilita no se incluye.</span>
+          </div>
+        </div>
+
+        <div class="sub" style="margin-top:16px">¿Cuánta energía ahorra la obra? <span class="hint" style="font-weight:400">— marca una opción (fija el % del Plan Estatal)</span></div>
+        <select id="ahorroNivel" class="visually-hidden" aria-hidden="true" tabindex="-1"><option value="parcial">parcial</option><option value="t1">t1</option><option value="t2">t2</option></select>
+        <div class="opt-cards" id="cardsAhorro" role="radiogroup" aria-label="Nivel de ahorro energético">
+          <button type="button" class="opt-card" role="radio" data-sel="ahorroNivel" data-value="parcial"><div class="pc">40 %</div><div class="ti">Mejora básica</div><div class="de">Cumple el CTE (HE1). Mejora ligera.</div></button>
+          <button type="button" class="opt-card" role="radio" data-sel="ahorroNivel" data-value="t1"><div class="pc">65 %</div><div class="ti">Ahorro notable</div><div class="de">Reduces entre 30 % y 60 % del consumo.</div></button>
+          <button type="button" class="opt-card" role="radio" data-sel="ahorroNivel" data-value="t2"><div class="pc">80 %</div><div class="ti">Ahorro máximo</div><div class="de">Reduces más del 60 % del consumo.</div></button>
+        </div>
+
+        <div class="sub" style="margin-top:16px">¿Cuánto mejora la calificación energética? <span class="hint" style="font-weight:400">— marca una opción (fija el % del Plan Rehabilita)</span></div>
+        <select id="presetRehab" class="visually-hidden" aria-hidden="true" tabindex="-1"><option value="una_letra">una_letra</option><option value="dos_letras">dos_letras</option></select>
+        <div class="opt-cards" id="cardsRehab" role="radiogroup" aria-label="Mejora de calificación energética">
+          <button type="button" class="opt-card" role="radio" data-sel="presetRehab" data-value="una_letra"><div class="ti">Sube 1 letra</div><div class="de">Ej.: de E a D. O reduces ≥ 30 % la demanda.</div></button>
+          <button type="button" class="opt-card" role="radio" data-sel="presetRehab" data-value="dos_letras"><div class="ti">Sube 2 letras o más</div><div class="de">Ej.: de E a C. O reduces ≥ 50 % la demanda.</div></button>
+        </div>
+
+        <details class="adv" id="advPct">
+          <summary><span class="car"></span>⚙️ Ajustes avanzados — % y topes (los rellenan los selectores de arriba; edítalos si quieres)</summary>
+          <div class="sub" style="margin-top:8px">Plan Estatal — % y topes</div>
+          <div class="grid">
+            <div class="field"><label for="pctEstatal">% subvención sobre coste</label><input id="pctEstatal" type="number" min="0" max="100" step="0.1" value="40"></div>
+            <div class="field"><label for="topeVivEstatal">Tope € / vivienda</label><input id="topeVivEstatal" type="number" min="0" step="1" value="7500"></div>
+            <div class="field"><label for="euroM2Local">€ / m² de locales</label><input id="euroM2Local" type="number" min="0" step="1" value="90"></div>
+          </div>
+          <div class="sub" style="margin-top:14px">Plan Rehabilita Madrid 2026 — % y tope</div>
+          <div class="grid">
+            <div class="field"><label for="pctRehab">% subvención (municipal)</label><input id="pctRehab" type="number" min="0" max="100" step="0.1" value="50"></div>
+            <div class="field"><label for="topeVivRehab">Tope € / vivienda</label><input id="topeVivRehab" type="number" min="0" step="1" value="8000"></div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- 3 · Actuaciones -->
+    <section class="card" aria-labelledby="h3e">
+      <h2 class="head" id="h3e"><span class="num" aria-hidden="true">3</span> 🔧 Tipo de actuación</h2>
+      <div class="body">
+        <fieldset style="border:none;margin:0;padding:0">
+          <legend class="sub" style="margin-top:0">Marca las actuaciones incluidas en el proyecto</legend>
+          <div class="checks" id="actChecks"></div>
+        </fieldset>
+      </div>
+    </section>
+
+    <!-- 4 · Presupuesto -->
+    <section class="card" aria-labelledby="h4e">
+      <h2 class="head" id="h4e"><span class="num" aria-hidden="true">4</span> 💶 Presupuesto y coste de la actuación</h2>
+      <div class="body">
+        <div class="sub">Capítulos · Presupuesto de Ejecución Material (PEM)</div>
+        <div id="capitulos"></div>
+        <div class="saverow" style="margin-top:4px">
+          <button type="button" class="btn-outline btn-sm" id="btnAddCap">+ Añadir capítulo</button>
+          <span class="hint" id="sumaCapTxt" aria-live="polite"></span>
+        </div>
+        <span class="errmsg" id="pemErr" role="alert">Añade al menos un capítulo con importe.</span>
+
+        <div class="sub" style="margin-top:18px">Honorarios, IVA y tasas</div>
+        <div class="grid">
+          <div class="field"><label for="ivaObra">IVA de la obra (%)</label><input id="ivaObra" type="number" min="0" max="100" step="0.1" value="10"><span class="hint">Habitual en rehabilitación: 10 %.</span></div>
+          <div class="field"><label for="honTec">Honorarios técnicos (€)</label><input id="honTec" type="number" min="0" step="0.01" placeholder="15000"><span class="hint">Proyecto + Dirección de Obra (sin IVA).</span></div>
+          <div class="field"><label for="honAgente">Honorarios agente rehabilitador (€)</label><input id="honAgente" type="number" min="0" step="0.01" placeholder="0"></div>
+          <div class="field"><label for="ivaHon">IVA de honorarios (%)</label><input id="ivaHon" type="number" min="0" max="100" step="0.1" value="21"></div>
+          <div class="field"><label for="tasasPct">Tasas no subvencionables · ICIO + Tasas (% del PEM)</label><input id="tasasPct" type="number" min="0" max="100" step="0.1" value="4"><span class="hint">No subvencionables: las paga siempre la comunidad.</span></div>
+        </div>
+
+        <div class="sub" style="margin-top:18px">Actuaciones de accesibilidad (opcional)</div>
+        <div class="accbox">
+          <div class="grid">
+            <div class="field">
+              <label for="costeAcc">Coste de actuaciones de accesibilidad (€)</label>
+              <input id="costeAcc" type="number" min="0" step="0.01" placeholder="0" aria-describedby="hint-acc">
+              <span class="hint" id="hint-acc">Ascensor, rampas, salvaescaleras… Si es 0, no se muestra el bloque.</span>
+            </div>
+            <div class="field">
+              <label for="nivelAcc">Nivel ayuda estatal (tope €/viv)</label>
+              <select id="nivelAcc">
+                <option value="general">General · 13.000 €/viv</option>
+                <option value="mayor">&gt;65 años o discapacidad ≥33 % · 18.000 €/viv</option>
+                <option value="disc65">Discapacidad ≥65 % · 20.500 €/viv</option>
+                <option value="universal">Accesibilidad universal · 22.000 €/viv</option>
+              </select>
+            </div>
+            <div class="field"><label for="pctAccEstatal">% estatal (70 %; 80 % si discap./&gt;65)</label><input id="pctAccEstatal" type="number" min="0" max="100" step="0.1" value="70"></div>
+            <div class="field"><label for="pctAccCam">% municipal Madrid (ZETU 75 / ZIRE 40)</label><input id="pctAccCam" type="number" min="0" max="100" step="0.1" value="75"></div>
+            <div class="field"><label for="topeAccCam">Tope €/viv municipal (ZETU 10.000 / ZIRE 4.000)</label><input id="topeAccCam" type="number" min="0" step="1" value="10000"></div>
+          </div>
+        </div>
+
+        <div class="sub" style="margin-top:18px">Resumen económico (cálculo automático)</div>
+        <div id="ecoResumen" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- 5 · Vulnerabilidad + CAE -->
+    <section class="card" aria-labelledby="h5e">
+      <h2 class="head" id="h5e"><span class="num" aria-hidden="true">5</span> ♿ Vulnerabilidad económica y CAE</h2>
+      <div class="body">
+        <div class="grid">
+          <div class="field">
+            <label for="vuln">Vulnerabilidad económica de propietarios</label>
+            <select id="vuln"><option value="no">No</option><option value="parcial">Parcial (algunas viviendas)</option><option value="si">Sí (generalizada)</option></select>
+            <span class="hint">Puede elevar la ayuda hasta el 100 % en casos justificados.</span>
+          </div>
+          <div class="field" id="vulnVivWrap" style="display:none">
+            <label for="vulnViv">Nº de viviendas vulnerables</label>
+            <input id="vulnViv" type="number" min="0" step="1" placeholder="0">
+          </div>
+          <div class="field">
+            <label for="caePct">CAE (% sobre coste total)</label>
+            <input id="caePct" type="number" min="0" max="100" step="0.1" value="6">
+            <span class="hint">Por defecto 6 % del coste total de la comunidad.</span>
+          </div>
+          <div class="field">
+            <label for="cae">CAE importe (€) — opcional</label>
+            <input id="cae" type="number" min="0" step="0.01" placeholder="(auto desde el %)">
+            <span class="hint">Si lo dejas vacío, se calcula con el % de arriba.</span>
+          </div>
+          <div class="field">
+            <label class="chk on" id="caeChkLbl" style="margin-top:22px"><input id="caeInc" type="checkbox" checked> Incluir CAE en el total</label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 · Persistencia -->
+    <section class="card no-print" aria-labelledby="h6e">
+      <h2 class="head" id="h6e"><span class="num" aria-hidden="true">6</span> 💾 Guardar / cargar presupuestos</h2>
+      <div class="body">
+        <div class="sub">Se guardan en este navegador (localStorage)</div>
+        <div class="saverow">
+          <label class="visually-hidden" for="nombrePres">Nombre del presupuesto</label>
+          <input id="nombrePres" type="text" placeholder="Nombre del presupuesto (ej. C/ Andrés Torrejón 26)">
+          <button type="button" class="btn-primary btn-sm" id="btnGuardar">💾 Guardar</button>
+        </div>
+        <div class="saverow">
+          <label class="visually-hidden" for="listaPres">Presupuestos guardados</label>
+          <select id="listaPres"><option value="">— Presupuestos guardados —</option></select>
+          <button type="button" class="btn-outline btn-sm" id="btnCargar">📂 Cargar</button>
+          <button type="button" class="btn-danger btn-sm" id="btnBorrar">🗑 Borrar</button>
+        </div>
+      </div>
+    </section>
+  </form>
+
+  <!-- =================== PANEL DE REFERENCIA =================== -->
+  <details class="card solo-edicion no-print" id="refPanel">
+    <summary class="head"><span class="num" aria-hidden="true">📚</span> <span class="car"></span>Referencia oficial de cuantías 2026 <span style="font-weight:400;opacity:.85;margin-left:6px">(clic para abrir)</span></summary>
+    <div class="body">
+      <div class="sub">🏛️ Plan Estatal de Vivienda 2026-2030 · RD 326/2026 <span class="hint" style="font-weight:400">(verificado en el BOE)</span></div>
+      <table>
+        <thead><tr><th scope="col">Actuación (artículo)</th><th scope="col" class="num">% máx.</th><th scope="col" class="num">€/vivienda</th><th scope="col" class="num">€/m² local</th></tr></thead>
+        <tbody>
+          <tr><td>Edificio — Seguridad estructural (99.1)</td><td class="num">40 % (60 % comb.)</td><td class="num">8.000 → 12.000</td><td class="num">90 → 135</td></tr>
+          <tr><td>Edificio — Accesibilidad (99.2)</td><td class="num">70 % (→80 %)</td><td class="num">13.000 / 18.000 / 20.500 / 22.000</td><td class="num">145</td></tr>
+          <tr><td>Edificio — Energía, ahorro &lt;60 % (Anexo II)</td><td class="num">65 %</td><td class="num">13.000</td><td class="num">145</td></tr>
+          <tr><td>Edificio — Energía, ahorro ≥60 % (Anexo II)</td><td class="num">80 %</td><td class="num">20.500</td><td class="num">228</td></tr>
+          <tr><td>Edificio — Envolvente parcial (99.3.c)</td><td class="num">40 %</td><td class="num">7.500</td><td class="num">—</td></tr>
+          <tr><td>Vivienda — Accesibilidad interior (108.1)</td><td class="num">80 %</td><td class="num">15.000 / 18.000</td><td class="num">—</td></tr>
+          <tr><td>Protección patrimonial (114, adicional)</td><td class="num">—</td><td class="num">hasta 30.000</td><td class="num">—</td></tr>
+          <tr class="total"><td>Vulnerabilidad económica (99.5 / 108.4)</td><td class="num">hasta 100 %</td><td class="num">—</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+      <p class="hint" style="margin-top:6px">Requisitos: edificio anterior a 2006 · Libro del Edificio Existente · CEE antes y después · ahorro &gt;30 % en energía primaria no renovable · ejecución ≤36 meses.</p>
+
+      <div class="sub" style="margin-top:16px">🏙️ Plan Rehabilita Madrid 2026 · 6 líneas <span class="hint" style="font-weight:400">(Ayuntamiento de Madrid · provisional, pendiente Anexo I BOAM)</span></div>
+      <div class="ref-cards">
+        <div class="ref-line"><h4>♿ Accesible</h4><div class="cubre">Ascensores, rampas, plataformas, videoportería</div><div class="zz"><span>ZETU <b>75 % · 10.000 €</b></span><span>ZIRE <b>40 % · 4.000 €</b></span></div></div>
+        <div class="ref-line alt"><h4>🏛️ Conserva</h4><div class="cubre">Estructura, fachada, cubierta, instalaciones comunes</div><div class="zz"><span>ZETU <b>50 % · 5.000 €</b></span><span>ZIRE <b>40 % · 4.000 €</b></span></div></div>
+        <div class="ref-line"><h4>🌿 Eficiencia Energética</h4><div class="cubre">Aislamiento, carpinterías, renovables, recarga VE</div><div class="zz"><span>ZETU <b>60/70 % · 8.000 €</b></span><span>ZIRE <b>50/60 % · 8.000 €</b></span></div></div>
+        <div class="ref-line alt"><h4>🫁 Salubridad</h4><div class="cubre">Amianto, radón, acústica</div><div class="zz"><span>ZETU <b>hasta 75 % · 10.000 €</b></span><span>ZIRE <b>—</b></span></div></div>
+        <div class="ref-line alt"><h4>🛡️ Seguridad</h4><div class="cubre">Incendios, electricidad, ascensores</div><div class="zz"><span>ZETU <b>60 % · 8.000 €</b></span><span>ZIRE <b>50 % · 5.000 €</b></span></div></div>
+        <div class="ref-line"><h4>✨ Embellecimiento</h4><div class="cubre">Cableado, climatización oculta, toldos (novedad)</div><div class="zz"><span colspan="2"><b>+5 % a la línea Verde</b></span></div></div>
+      </div>
+      <p class="hint" style="margin-top:8px">Extra: letra F/G → tope Verde 9.000 €/viv · honorarios técnicos hasta 12.000 €/edificio · presupuesto mínimo 3.000 € (unifamiliar) / 6.000 € (colectivo) · vulnerabilidad hasta 90 %.</p>
+      <div class="avisobox acc"><span class="ic" aria-hidden="true">✔️</span><div><b>Requisitos Madrid:</b> edificio anterior a <b>1998</b> · ≥70 % uso residencial sobre rasante · <b>IEE registrado</b> antes de solicitar · Madrid capital. Plazo de solicitud: <b>3-jun a 30-sep-2026</b> (50 M€).</div></div>
+      <p class="hint" style="margin-top:8px">Fuentes: <b>RD 326/2026</b> (BOE-A-2026-8872, PDF del BOE) · <b>BOAM nº 10138</b> de 02/06/2026 (Ayuntamiento de Madrid). Las cifras municipales se confirmarán contra el Anexo I del BOAM.</p>
+    </div>
+  </details>
+
+  <!-- =================== INFORME =================== -->
+  <div id="informe"><div class="page" id="informeBody"></div></div>
+</main>
+
+<div class="flash" id="flash" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================================================================
+   CUANTÍAS POR DEFECTO (idénticas a cuantias.json). Garantizan funcionamiento
+   a doble clic (file://). Si la app se sirve por http, cuantias.json las sobrescribe.
+   ========================================================================== */
+const CUANTIAS_DEFAULT = {
+  estatal:{
+    nombre:"Plan Estatal de Vivienda 2026-2030 (RD 326/2026)",
+    tramos:[
+      {id:"parcial",etiqueta:"Envolvente parcial — cumple HE1 del CTE (Art. 99.3.c)",pct:0.40,euroViv:7500,euroM2Local:0},
+      {id:"t1",etiqueta:"Ahorro Cep,nren < 60% o Dcal+ref ≥ 45% (Anexo II)",pct:0.65,euroViv:13000,euroM2Local:145},
+      {id:"t2",etiqueta:"Ahorro Cep,nren o Dcal+ref ≥ 60% (Anexo II)",pct:0.80,euroViv:20500,euroM2Local:228}
+    ]
+  },
+  rehabilita:{
+    nombre:"Plan Rehabilita Madrid 2026 (Ayuntamiento de Madrid)",topeViv:8000,honorariosMaxEdificio:12000,
+    zonas:{
+      ZETU:{nombre:"Zona de Especial Transformación Urbana",una_letra:0.60,dos_letras:0.70},
+      ZIRE:{nombre:"Zona de Impulso a la Rehabilitación Energética",una_letra:0.50,dos_letras:0.60},
+      NINGUNA:{nombre:"Fuera de ámbito / no declarado",una_letra:0.0,dos_letras:0.0}
+    }
+  },
+  accesibilidad:{
+    nombre:"Accesibilidad",
+    estatal:{pct:0.70,pctEspecial:0.80,euroM2Local:145,niveles:{
+      general:{etiqueta:"General",euroViv:13000},
+      mayor:{etiqueta:">65 años o discapacidad ≥33%",euroViv:18000},
+      disc65:{etiqueta:"Discapacidad ≥65%",euroViv:20500},
+      universal:{etiqueta:"Accesibilidad universal del edificio",euroViv:22000}
+    }},
+    cam:{zonas:{ZETU:{pct:0.75,topeViv:10000},ZIRE:{pct:0.40,topeViv:4000}}}
+  },
+  cae:{pct:0.06},
+  irpf:{pct:0.60,maxTotal:15000,maxAnual:5000},
+  cap:{limitarAlCosteReal:true,porcentajeMaximo:1.0},
+  semaforo:{verde:0.80,ambar:0.50}
+};
+let CUANTIAS = JSON.parse(JSON.stringify(CUANTIAS_DEFAULT));
+
+(async function(){
+  try{
+    const r = await fetch('cuantias.json',{cache:'no-store'});
+    if(!r.ok) return;
+    const j = await r.json();
+    CUANTIAS = {
+      estatal:j.estatal||CUANTIAS_DEFAULT.estatal,
+      rehabilita:j.rehabilita||CUANTIAS_DEFAULT.rehabilita,
+      accesibilidad:j.accesibilidad||CUANTIAS_DEFAULT.accesibilidad,
+      cae:j.cae||CUANTIAS_DEFAULT.cae,
+      irpf:j.irpf||CUANTIAS_DEFAULT.irpf,
+      cap:j.cap||CUANTIAS_DEFAULT.cap,
+      semaforo:j.semaforo||CUANTIAS_DEFAULT.semaforo
+    };
+    refrescarSelectoresDesdeCuantias();
+    console.info('cuantias.json cargado correctamente.');
+  }catch(e){}
+})();
+
+/* ===== Catálogos ===== */
+const DISTRITOS = ["Centro","Arganzuela","Retiro","Salamanca","Chamartín","Tetuán","Chamberí",
+  "Fuencarral-El Pardo","Moncloa-Aravaca","Latina","Carabanchel","Usera","Puente de Vallecas",
+  "Moratalaz","Ciudad Lineal","Hortaleza","Villaverde","Villa de Vallecas","Vicálvaro",
+  "San Blas-Canillejas","Barajas","Otro municipio (CAM)"];
+const ACTUACIONES = [
+  {id:"fachada",txt:"SATE / aislamiento de fachadas"},{id:"cubierta",txt:"Cubierta"},
+  {id:"carpinteria",txt:"Sustitución de carpinterías"},{id:"saneamiento",txt:"Instalación de saneamiento"},
+  {id:"accesibilidad",txt:"Accesibilidad (ascensor, rampas)"},{id:"instalaciones",txt:"Instalaciones comunes"},
+  {id:"otros",txt:"Otros"}];
+const REQUISITOS = [
+  "Acuerdo de la Junta de Propietarios aprobando la actuación y la solicitud de ayudas.",
+  "Reducción acreditada del consumo de energía primaria no renovable (mín. 30 % en energía).",
+  "Certificado de Eficiencia Energética del edificio antes y después de la obra.",
+  "Proyecto técnico y, en su caso, Libro del Edificio Existente (LEEx) o IEE registrado.",
+  "Actuaciones no iniciadas antes de la fecha que marque la convocatoria.",
+  "Estar al corriente de obligaciones tributarias y con la Seguridad Social.",
+  "Justificación documental de la vulnerabilidad para acceder a los incrementos."];
+
+/* ===== Utilidades ===== */
+const $  = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+function fmtEUR(n){ return (isFinite(n)?n:0).toLocaleString('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtPct(n){ return (isFinite(n)?n*100:0).toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:1})+' %'; }
+function fmtNum(n){ return (isFinite(n)?n:0).toLocaleString('es-ES',{maximumFractionDigits:2}); }
+function num(v){ const n=parseFloat(String(v).replace(',','.')); return isFinite(n)?n:0; }
+
+function rellenarDistritos(){ const s=$('#distritosList'); if(!s) return; s.innerHTML=''; DISTRITOS.forEach(d=>{const o=document.createElement('option');o.value=d;s.appendChild(o);}); }
+function construirChecks(){
+  const c=$('#actChecks'); c.innerHTML='';
+  ACTUACIONES.forEach(a=>{ const l=document.createElement('label'); l.className='chk'; l.dataset.id=a.id;
+    l.innerHTML=`<input type="checkbox" value="${a.id}"> ${a.txt}`;
+    l.querySelector('input').addEventListener('change',e=>l.classList.toggle('on',e.target.checked));
+    c.appendChild(l); });
+}
+function refrescarSelectoresDesdeCuantias(){ /* selectores estáticos: nada que reconstruir */ }
+// El TRAMO DE AHORRO fija el % estatal y los topes (luego editables en avanzado)
+function aplicarTramoEstatal(){
+  const t=CUANTIAS.estatal.tramos.find(x=>x.id===$('#ahorroNivel').value); if(!t) return;
+  $('#pctEstatal').value=+(t.pct*100).toFixed(1); $('#topeVivEstatal').value=t.euroViv; $('#euroM2Local').value=t.euroM2Local; recalcEco();
+}
+// La ZONA (+ mejora de letra) fija el % de Rehabilita. Fuera de ámbito (NINGUNA) → 0 (no se incluye).
+function setRehabFromZona(){
+  const z=$('#zona').value;
+  if(z==='NINGUNA'){ $('#pctRehab').value='0'; $('#topeVivRehab').value='0'; recalcEco(); return; }
+  const zona=CUANTIAS.rehabilita.zonas[z]||CUANTIAS.rehabilita.zonas.ZIRE;
+  const letra=$('#presetRehab').value||'una_letra';
+  $('#pctRehab').value=+(((zona[letra]||0))*100).toFixed(1); $('#topeVivRehab').value=CUANTIAS.rehabilita.topeViv; recalcEco();
+}
+
+/* ===== Detección automática de zona (geoportal de Madrid) ===== */
+const GEO_BASE="https://sigma.madrid.es/hosted/rest/services";
+const GEOCODER=GEO_BASE+"/GEOLOCATOR/GEOLOCALIZADOR_MADRID_VIAL_NDP/GeocodeServer/findAddressCandidates";
+const REHAB_MS=GEO_BASE+"/VIVIENDA/PLAN_REHABILITA_MADRID/MapServer";
+let mapInst=null, mapMarker=null;
+
+// Al detectar zona, rellena automáticamente los % del municipio y de accesibilidad municipal
+function aplicarZonaAuto(z){
+  $('#zona').value=z;
+  setRehabFromZona();
+  const cam=(CUANTIAS.accesibilidad.cam.zonas||{})[z];
+  if(cam){ $('#pctAccCam').value=+(cam.pct*100).toFixed(1); $('#topeAccCam').value=cam.topeViv; }
+  recalcEco();
+}
+
+function mostrarMapa(lat,lon,texto){
+  const el=$('#mapZona');
+  if(typeof L==='undefined'){ el.style.display='none'; return; }
+  el.style.display='block';
+  try{
+    if(!mapInst){
+      mapInst=L.map(el,{scrollWheelZoom:false}).setView([lat,lon],17);
+      L.tileLayer.wms('https://www.ign.es/wms-inspire/ign-base',{layers:'IGNBaseTodo',format:'image/png',attribution:'© IGN España'}).addTo(mapInst);
+      if(L.esri){ try{ L.esri.dynamicMapLayer({url:REHAB_MS,layers:[93,94,95],opacity:0.4}).addTo(mapInst); }catch(e){} }
+    } else { mapInst.setView([lat,lon],17); }
+    if(mapMarker) mapMarker.remove();
+    mapMarker=L.marker([lat,lon]).addTo(mapInst).bindPopup(texto).openPopup();
+    setTimeout(()=>{ try{mapInst.invalidateSize();}catch(e){} },220);
+  }catch(e){ el.style.display='none'; }
+}
+
+async function detectarZona(){
+  const dir=$('#direccion').value.trim();
+  const chip=$('#zonaChip');
+  const set=(t,c)=>{ chip.innerHTML=t; chip.className='chip-zona '+(c||''); };
+  if(!dir){ set('Escribe primero la dirección (bloque 1).','warn'); return; }
+  set('Localizando…','load');
+  try{
+    const g=await fetch(GEOCODER+"?SingleLine="+encodeURIComponent(dir)+"&outSR=4326&maxLocations=1&outFields=*&f=json",{cache:'no-store'});
+    const gj=await g.json();
+    const c=gj.candidates&&gj.candidates[0];
+    if(!c || c.score<55){ set('Dirección no localizada en Madrid. Elige la zona a mano.','warn'); return; }
+    const lon=c.location.x, lat=c.location.y;
+    const distNom=c.attributes&&c.attributes.DISTRITO_NOMBRE; if(distNom && $('#distrito')) $('#distrito').value=distNom;
+    let ambito=null;
+    for(const layer of [95,93,94]){
+      try{
+        const u=REHAB_MS+"/"+layer+"/query?geometry="+lon+","+lat+"&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=json";
+        const r=await fetch(u,{cache:'no-store'}); const j=await r.json();
+        if(j.features&&j.features.length){ ambito=j.features[0].attributes; break; }
+      }catch(e){}
+    }
+    if(ambito){
+      aplicarZonaAuto('ZETU');
+      const nom=ambito.NOMBRE_APIRU||ambito.nombre||ambito.NOMBRE||'ámbito de transformación';
+      set('✔️ <b>ZETU</b> · '+nom+' <span class="hint">· orientativo</span>','ok');
+    } else {
+      aplicarZonaAuto('ZIRE');
+      set('✔️ <b>ZIRE</b> · resto del municipio <span class="hint">· orientativo</span>','ok');
+    }
+    mostrarMapa(lat,lon,(c.address||dir));
+  }catch(e){
+    set('No se pudo conectar con el geoportal (¿sin conexión?). Elige la zona a mano.','warn');
+  }
+}
+
+/* ===== Datos del edificio desde la Sede Electrónica del Catastro ===== */
+const CATASTRO_DNPLOC="https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPLOC";
+function catastroExtraer(obj,acc){
+  if(!obj||typeof obj!=='object') return;
+  if(obj.luso!=null && (obj.sfc!=null||obj.ant!=null)) acc.push({uso:obj.luso,sfc:+obj.sfc||0,ant:obj.ant});
+  for(const k in obj){ const v=obj[k]; if(Array.isArray(v)) v.forEach(x=>catastroExtraer(x,acc)); else if(v&&typeof v==='object') catastroExtraer(v,acc); }
+}
+// El distrito (de Madrid capital) lo da el geocodificador del Ayuntamiento, no el Catastro
+async function distritoDesdeGeocoder(dir){
+  try{
+    const g=await fetch(GEOCODER+"?SingleLine="+encodeURIComponent(dir)+"&outSR=4326&maxLocations=1&outFields=DISTRITO_NOMBRE&f=json",{cache:'no-store'});
+    const gj=await g.json(); const c=gj.candidates&&gj.candidates[0];
+    const dn=c&&c.attributes&&c.attributes.DISTRITO_NOMBRE;
+    if(dn && $('#distrito')){ $('#distrito').value=dn; return dn; }
+  }catch(e){}
+  return '';
+}
+function parseDireccion(dir){
+  dir=(dir||'').trim();
+  const num=(dir.match(/(\d{1,4})(?!.*\d)/)||[])[1]||'';
+  let sigla='CL',rest=dir;
+  const S=[[/^(calle|c\/|c\.)\s*/i,'CL'],[/^(avenida|avda\.?|av\.?)\s*/i,'AV'],[/^(plaza|pza\.?|pl\.?)\s*/i,'PZ'],[/^(paseo|p[ºo]\.?)\s*/i,'PS'],[/^(camino)\s*/i,'CM'],[/^(carretera|ctra\.?)\s*/i,'CR'],[/^(ronda)\s*/i,'RD'],[/^(gta\.?|glorieta)\s*/i,'GL'],[/^(traves[íi]a|trav\.?)\s*/i,'TR']];
+  for(const [re,s] of S){ if(re.test(rest)){ sigla=s; rest=rest.replace(re,'').trim(); break; } }
+  let calle=rest.replace(/\d.*$/,'').replace(/,.*$/,'').trim().replace(/^(de la|de los|de las|del|de)\s+/i,'').trim();
+  return {sigla,calle:calle.toUpperCase(),num};
+}
+async function datosCatastro(){
+  const dir=$('#direccion').value.trim(); const chip=$('#catastroChip');
+  const set=(t,c)=>{chip.innerHTML=t;chip.className='chip-zona '+(c||'');};
+  if(!dir){ set('Escribe primero la dirección.','warn'); return; }
+  const p=parseDireccion(dir);
+  if(!p.calle||!p.num){ set('No entiendo la dirección (falta calle o número).','warn'); return; }
+  set('Consultando catastro…','load');
+  try{
+    const muni=(($('#municipio')&&$('#municipio').value)||'MADRID').trim().toUpperCase();
+    const u=CATASTRO_DNPLOC+"?Provincia=MADRID&Municipio="+encodeURIComponent(muni)+"&Sigla="+p.sigla+"&Calle="+encodeURIComponent(p.calle)+"&Numero="+encodeURIComponent(p.num);
+    const r=await fetch(u,{cache:'no-store'}); const j=await r.json();
+    const acc=[]; catastroExtraer(j,acc);
+    if(muni==='MADRID') await distritoDesdeGeocoder(dir);  // autorrellena el distrito (solo Madrid capital)
+    const root=j.consulta_dnplocResult||j;
+    const cudnp=(root.control&&root.control.cudnp)||acc.length;
+    if(!acc.length){ set('Sin datos en Catastro para «'+p.calle+' '+p.num+'». Revisa la dirección o rellena a mano.','warn'); return; }
+    const viv=acc.filter(x=>/Residencial/i.test(x.uso));
+    const loc=acc.filter(x=>/Comercial|Oficina/i.test(x.uso));
+    const anio=acc.map(x=>x.ant).filter(Boolean).sort()[0]||'';
+    const set2=(id,v)=>{ if(v!=null&&v!==''&&$('#'+id)) $('#'+id).value=v; };
+    if(anio) set2('anio',anio);
+    // Fiable solo si el Catastro ENUMERA las unidades del edificio (división horizontal)
+    const fiable = cudnp>1 && viv.length>0;
+    if(fiable){
+      set2('numViv',viv.length);
+      const supV=viv.reduce((a,x)=>a+x.sfc,0), supT=acc.reduce((a,x)=>a+x.sfc,0), supL=loc.reduce((a,x)=>a+x.sfc,0);
+      if(supV) set2('supViv',Math.round(supV));
+      if(supT) set2('supTotal',Math.round(supT));
+      if(loc.length>0){ $('#tieneLocales').value='si'; toggleLocales(); set2('numLocales',loc.length); set2('supLocales',Math.round(supL)); }
+      else { $('#tieneLocales').value='no'; toggleLocales(); }
+      recalcEco(); guardarBorrador();
+      set('✔️ '+viv.length+' viviendas'+(loc.length?' · '+loc.length+' locales':' · sin locales')+' · año '+(anio||'?')+' <span class="hint">(Catastro · revísalo)</span>','ok');
+    } else {
+      recalcEco(); guardarBorrador();
+      set('⚠️ El Catastro no detalla las unidades de esta dirección'+(anio?' (año '+anio+')':'')+'. Pon el nº de viviendas y los locales a mano.','warn');
+    }
+  }catch(e){
+    if(location.protocol==='file:') set('Abre la app servida (Abrir calculadora.bat) para consultar el Catastro.','warn');
+    else set('No se pudo consultar el Catastro. Rellena a mano.','warn');
+  }
+}
+
+/* ===== Importar presupuesto desde PDF (pdf.js) ===== */
+function numES(s){ return parseFloat(String(s).replace(/\./g,'').replace(',','.')); }
+
+async function importarPDF(file){
+  const status=$('#impStatus'); status.classList.add('show');
+  if(!file){ status.textContent='Selecciona un archivo PDF.'; return; }
+  if(typeof pdfjsLib==='undefined'){ status.textContent='No se pudo cargar el lector de PDF (¿sin conexión a internet?).'; return; }
+  status.textContent='Leyendo «'+file.name+'»…';
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    const lines=[];
+    for(let p=1;p<=pdf.numPages;p++){
+      const page=await pdf.getPage(p);
+      const tc=await page.getTextContent();
+      const byY={};
+      tc.items.forEach(it=>{ if(!it.str) return; const y=Math.round(it.transform[5]); (byY[y]=byY[y]||[]).push({x:it.transform[4],s:it.str}); });
+      Object.keys(byY).map(Number).sort((a,b)=>b-a).forEach(y=>{
+        const l=byY[y].sort((a,b)=>a.x-b.x).map(o=>o.s).join(' ').replace(/\s+/g,' ').trim();
+        if(l) lines.push(l);
+      });
+    }
+    revisar(parsePresupuesto(lines));
+  }catch(e){
+    if(location.protocol==='file:') status.innerHTML='⚠️ No se pudo leer el PDF porque has abierto la app con <b>doble clic</b> (file://) y el navegador bloquea el lector. <b>Solución:</b> ábrela servida por HTTP (mira el README: <code>.claude\\serve.ps1</code> → <code>http://localhost:8123/</code>) y vuelve a importar.';
+    else status.textContent='No se pudo leer el PDF: '+(e&&e.message||e);
+  }
+}
+
+function parsePresupuesto(lines){
+  const text=lines.join('\n');
+  const out={capitulos:[],encontrado:[],noEncontrado:[]};
+  const AMT=/(\d{1,3}(?:\.\d{3})*,\d{2})/;
+  const skip=/TOTAL|I\.?\s*V\.?\s*A|HONORAR|TASA|ICIO|COSTE|RESUMEN|CAP\.|PRESUPUESTO|MEJORA|SISTEMA|CLIENTE|ACTUACI[ÓO]N|FECHA|EJECUCI/i;
+
+  // --- Capítulos: dentro del bloque "RESUMEN PRESUPUESTOS" → "TOTAL EJECUCIÓN MATERIAL" ---
+  // Maneja filas en una línea ("01 NOMBRE 1.234,56") y partidas ("NOMBRE" / "02 1.234,56").
+  let bi=lines.findIndex(l=>/RESUMEN\s+PRESUPUESTOS/i.test(l));
+  if(bi<0) bi=lines.findIndex(l=>/CAP\.?\s+MEJORA|\bCAP[ÍI]TULO/i.test(l));
+  let ei=-1; for(let i=(bi<0?0:bi)+1;i<lines.length;i++){ if(/EJECUCI[ÓO]N\s+MATERIAL/i.test(lines[i])){ ei=i; break; } }
+  const block=(bi>=0&&ei>bi)?lines.slice(bi+1,ei):lines;
+  let pending='';
+  block.forEach(l=>{
+    const m=l.match(/^(\d{1,2})\s+(.*?)\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?$/);
+    if(m){
+      let nombre=m[2].replace(/\s+/g,' ').trim();
+      const imp=numES(m[3]);
+      if(nombre.length<3) nombre=pending;
+      if(nombre && nombre.length>=3 && !skip.test(nombre) && imp>0) out.capitulos.push({nombre,importe:imp});
+      pending='';
+    } else if(/^[A-Za-zÁÉÍÓÚÑ]/.test(l) && !AMT.test(l) && !skip.test(l)){
+      pending=l.trim();
+    }
+  });
+  // quitar duplicados
+  const seen=new Set(); out.capitulos=out.capitulos.filter(c=>{const k=c.nombre+'|'+c.importe; if(seen.has(k))return false; seen.add(k); return true;});
+
+  const find=(re)=>{ const m=text.match(re); return m?m:null; };
+  let m;
+  if(m=find(/EJECUCI[ÓO]N\s+MATERIAL[^\d]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i)) out.pem=numES(m[1]);
+  // IVA: % anclado a "I.V.A." (pueden ir en líneas separadas). 1º = obra, el primero distinto = honorarios
+  const ivas=[...text.matchAll(/I\.?\s*V\.?\s*A\.?[\s.]*?(\d{1,2})\s*%/gi)].map(x=>+x[1]);
+  if(ivas[0]!=null) out.ivaObra=ivas[0];
+  const ivH=ivas.find(v=>v!==out.ivaObra); out.ivaHon=(ivH!=null?ivH:(ivas[1]!=null?ivas[1]:undefined));
+  if(m=find(/HONORARIOS\s+T[ÉE]CNICOS[^\d]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i)) out.honTec=numES(m[1]);
+  // Tasas: el % seguido de un importe (ignora "Bonificado al 75%")
+  if(m=find(/TASAS[\s\S]{0,140}?(\d{1,2}(?:,\d+)?)\s*%\s+(\d{1,3}(?:\.\d{3})*,\d{2})/i)){ out.tasasPct=numES(m[1]); out.tasasEur=numES(m[2]); }
+  // bonificación del ICIO (p. ej. "Bonificado al 75% (ZETU)")
+  if(m=find(/Bonificad[oa]\s+al\s+(\d{1,3})\s*%/i)) out.tasasBonif=numES(m[1]);
+  // Dirección del CLIENTE (no la de la empresa)
+  if(m=find(/CLIENTE\s*:?\s*(.+?)\s*(?:PRESUPUESTO|FECHA|\n|$)/i)){
+    out.direccion=m[1].replace(/\s+/g,' ').trim().replace(/^CL\b\.?/i,'Calle').replace(/\s*-\s*/g,', ');
+  } else if(m=find(/\b(?:C\/|CALLE|AVDA\.?|AVENIDA|PLAZA|PASEO|Pº|CTRA\.?|CAMINO)\s+[A-Za-zÁÉÍÓÚÑáéíóúñ0-9 .,ºª\/-]{3,55}?\s*\d{1,4}\b/i)){
+    out.direccion=m[0].replace(/\s+/g,' ').trim();
+  }
+  if(m=find(/(\d{1,4})\s*VIVIENDAS?/i)||find(/N[ºo°]?\.?\s*(?:DE\s+)?VIVIENDAS?\D{0,6}(\d{1,4})/i)) out.numViv=+(m[1]);
+  if(m=find(/(\d{1,4})\s*LOCALES?/i)) out.numLocales=+(m[1]);
+  if(m=find(/([\d]{1,3}(?:\.\d{3})*(?:,\d+)?)\s*m2?\D{0,14}LOCAL/i)||find(/LOCAL\D{0,14}([\d]{1,3}(?:\.\d{3})*(?:,\d+)?)\s*m/i)) out.supLocales=numES(m[1]);
+  // clasificar capítulos de accesibilidad (ascensor, rampa…) y zona del PDF
+  const ACC_RE=/ASCENSOR|RAMPA|SALVAESCALERA|PLATAFORMA|MONTACARGAS|ACCESIBILIDAD|VIDEOPORTER/i;
+  out.capitulos.forEach(c=>{ c.acc=ACC_RE.test(c.nombre); });
+  out.accPEM=out.capitulos.filter(c=>c.acc).reduce((a,c)=>a+c.importe,0);
+  out.enPEM=out.capitulos.filter(c=>!c.acc).reduce((a,c)=>a+c.importe,0);
+  if(/\bZETU\b/i.test(text)) out.zona='ZETU'; else if(/\bZIRE\b/i.test(text)) out.zona='ZIRE';
+  // resumen legible
+  const pem=out.pem||out.capitulos.reduce((a,c)=>a+c.importe,0);
+  if(out.capitulos.length) out.encontrado.push(out.capitulos.length+' capítulos (PEM '+fmtEUR(pem)+')'); else out.noEncontrado.push('capítulos');
+  if(out.accPEM>0) out.encontrado.push('ascensor/accesibilidad '+fmtEUR(out.accPEM)+' → bloque accesibilidad (75%)');
+  if(out.zona) out.encontrado.push('zona '+out.zona+' (del PDF)');
+  out.ivaObra!=null?out.encontrado.push('IVA obra '+out.ivaObra+'%'):out.noEncontrado.push('IVA obra');
+  out.honTec!=null?out.encontrado.push('honorarios '+fmtEUR(out.honTec)):out.noEncontrado.push('honorarios');
+  out.tasasPct!=null?out.encontrado.push('tasas '+(out.tasasEur!=null?fmtEUR(out.tasasEur)+' ('+out.tasasPct+'%'+(out.tasasBonif!=null?' bonif. '+out.tasasBonif+'%':'')+')':out.tasasPct+'%')):out.noEncontrado.push('tasas');
+  out.direccion?out.encontrado.push('dirección'):out.noEncontrado.push('dirección');
+  out.numViv?out.encontrado.push(out.numViv+' viviendas'):out.noEncontrado.push('nº viviendas');
+  return out;
+}
+
+function revisar(d){
+  const status=$('#impStatus'); status.classList.add('show');
+  let html='<b>✔️ Detectado:</b> '+(d.encontrado.length?d.encontrado.join(' · '):'<i>nada reconocible</i>');
+  if(d.noEncontrado.length) html+='<br><span class="hint">No detectado (rellénalo a mano): '+d.noEncontrado.join(', ')+'.</span>';
+  if(d.capitulos.length) html+='<div class="cap-list">'+d.capitulos.map(c=>'· '+c.nombre+' — '+fmtEUR(c.importe)+(c.acc?' <b style="color:#9B2D2D">→ accesibilidad</b>':'')).join('<br>')+'</div>';
+  html+='<div style="margin-top:10px"><button type="button" class="btn-primary btn-sm" id="btnAplicarImp">Aplicar al formulario</button></div>';
+  status.innerHTML=html;
+  const b=$('#btnAplicarImp'); if(b) b.addEventListener('click',()=>aplicarImport(d));
+}
+
+function aplicarImport(d){
+  const set=(id,v)=>{ if(v!=null&&v!==''&&$('#'+id)) $('#'+id).value=v; };
+  set('direccion',d.direccion); set('numViv',d.numViv); // locales/superficie -> desde el Catastro
+  if($('#distrito')) $('#distrito').value=''; if(d.direccion) distritoDesdeGeocoder(d.direccion); // distrito desde la dirección
+  // Zona detectada en el PDF (p. ej. "(ZETU)") -> fija el % de Rehabilita
+  if(d.zona) set('zona',d.zona);
+  // ===== Económico FIEL al PDF: TODOS los capítulos al PEM; honorarios/IVA/tasas tal cual =====
+  set('ivaObra',d.ivaObra); set('ivaHon',d.ivaHon);
+  set('honTec', d.honTec!=null?d.honTec.toFixed(2):null);
+  if(d.capitulos.length){ $('#capitulos').innerHTML=''; d.capitulos.forEach(c=>addCapitulo(c.nombre,c.importe.toFixed(2))); }
+  const pemImp=d.pem||d.capitulos.reduce((a,c)=>a+c.importe,0);
+  // Tasas: importe real del PDF (con bonificación ICIO) -> % efectivo sobre el PEM COMPLETO
+  let tp=d.tasasPct; if(d.tasasEur!=null && pemImp>0) tp=+(d.tasasEur/pemImp*100).toFixed(4);
+  set('tasasPct', tp!=null?tp:null);
+  // ===== Ascensor = CARVE-OUT: parte del subvencionable que va al 75% municipal (no se mueve nada) =====
+  const accPEM=d.capitulos.filter(c=>c.acc).reduce((a,c)=>a+c.importe,0);
+  if(accPEM>0){
+    const iva=(d.ivaObra!=null?d.ivaObra:10)/100;
+    set('costeAcc',(accPEM*(1+iva)).toFixed(2));   // ascensor PEM + su IVA
+    set('nivelAcc','universal'); set('pctAccEstatal','0');
+    const z=$('#zona').value; const cam=(CUANTIAS.accesibilidad.cam.zonas||{})[z];
+    set('pctAccCam', cam? (cam.pct*100) : 75); set('topeAccCam', cam? cam.topeViv : 10000);
+  } else { set('costeAcc','0'); }
+  // ===== Autorrelleno de % desde los selectores (tramo estatal y zona->Rehabilita) =====
+  if(typeof aplicarTramoEstatal==='function') aplicarTramoEstatal();
+  if(typeof setRehabFromZona==='function') setRehabFromZona();
+  syncOptCards();
+  actualizarSumaCap(); recalcEco(); guardarBorrador();
+  flash('Presupuesto importado. Revisa los datos antes de generar el informe.');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ===== Capítulos ===== */
+function addCapitulo(nombre='',importe=''){
+  const row=document.createElement('div'); row.className='crow';
+  row.innerHTML=`<input type="text" class="cap-n" placeholder="Capítulo (ej. Fachada SATE)" aria-label="Nombre del capítulo" value="${String(nombre).replace(/"/g,'&quot;')}">
+    <input type="number" class="cap-i num" min="0" step="0.01" placeholder="€" aria-label="Importe del capítulo" value="${importe}">
+    <button type="button" class="rm" aria-label="Eliminar capítulo">×</button>`;
+  row.querySelector('.rm').addEventListener('click',()=>{row.remove();actualizarSumaCap();});
+  row.querySelector('.cap-i').addEventListener('input',actualizarSumaCap);
+  $('#capitulos').appendChild(row); actualizarSumaCap();
+}
+function leerCapitulos(){ return [...$$('#capitulos .crow')].map(r=>({nombre:r.querySelector('.cap-n').value.trim(),importe:num(r.querySelector('.cap-i').value)})).filter(c=>c.nombre||c.importe); }
+function sumaCapitulos(){ return leerCapitulos().reduce((a,c)=>a+c.importe,0); }
+function actualizarSumaCap(){ $('#sumaCapTxt').textContent='PEM (suma capítulos): '+fmtEUR(sumaCapitulos()); recalcEco(); }
+
+function recalcEco(){
+  const box=$('#ecoResumen'); if(!box) return;
+  const d=leerDatos(); const e=calcEconomia(d);
+  const accCoste=Math.min(d.costeAccesibilidad||0, e.costeSubvencionable);
+  const accRow = accCoste>0 ? `<tr><td style="font-style:italic;color:var(--gris)">— de los cuales, accesibilidad/ascensor (75 %)</td><td class="num">${fmtEUR(accCoste)}</td></tr>` : '';
+  box.innerHTML=`<table><caption class="visually-hidden">Resumen económico</caption><tbody>
+    <tr><td>Total Ejecución Material (PEM)</td><td class="num">${fmtEUR(e.pem)}</td></tr>
+    <tr><td>IVA de la obra (${fmtNum(d.ivaObra)} %)</td><td class="num">${fmtEUR(e.ivaObraEur)}</td></tr>
+    <tr><td>Honorarios técnicos + IVA (${fmtNum(d.ivaHon)} %)</td><td class="num">${fmtEUR(e.honTecConIva)}</td></tr>
+    <tr><td>Honorarios agente rehabilitador + IVA</td><td class="num">${fmtEUR(e.honAgenteConIva)}</td></tr>
+    <tr class="total"><td>COSTE SUBVENCIONABLE</td><td class="num">${fmtEUR(e.costeSubvencionable)}</td></tr>
+    ${accRow}
+    <tr><td>Tasas no subvencionables · ICIO+Tasas (${fmtNum(d.tasasPct)} % PEM)</td><td class="num">${fmtEUR(e.tasasEur)}</td></tr>
+    <tr class="total"><td>COSTE TOTAL PARA LA COMUNIDAD</td><td class="num">${fmtEUR(e.costeTotalComunidad)}</td></tr>
+  </tbody></table>`;
+}
+
+/* ============================================================================
+   NÚCLEO DE CÁLCULO
+   ========================================================================== */
+function calcEconomia(d){
+  const pem=d.capitulos.reduce((a,c)=>a+c.importe,0);
+  const ivaObraEur=pem*(d.ivaObra/100);
+  const honTecIva=d.honTec*(d.ivaHon/100);
+  const honAgenteIva=d.honAgente*(d.ivaHon/100);
+  const honTecConIva=d.honTec+honTecIva;
+  const honAgenteConIva=d.honAgente+honAgenteIva;
+  const costeSubvencionable=pem+ivaObraEur+honTecConIva+honAgenteConIva;
+  const tasasEur=pem*(d.tasasPct/100);
+  const costeTotalComunidad=costeSubvencionable+tasasEur;
+  return {pem,ivaObraEur,honTec:d.honTec,honTecIva,honTecConIva,honAgente:d.honAgente,honAgenteIva,honAgenteConIva,costeSubvencionable,tasasEur,costeTotalComunidad};
+}
+
+function calcular(d){
+  const C=CUANTIAS;
+  const e=calcEconomia(d);
+  const tramo=C.estatal.tramos.find(t=>t.id===d.ahorroNivel)||null;
+  const pctEst=d.pctEstatal/100;
+
+  // Accesibilidad = CARVE-OUT: parte del coste subvencionable (p. ej. el ascensor) que va al % de accesibilidad.
+  // No se suma aparte; se "reparte" el subvencionable entre energía y accesibilidad (sin descuadrar el PDF).
+  const accCoste=Math.min(d.costeAccesibilidad||0, e.costeSubvencionable);
+  const baseEnergia=Math.max(0, e.costeSubvencionable - accCoste);
+
+  // A) ESTATAL energía (sobre la base de energía, sin la parte de accesibilidad)
+  const est_porPct=baseEnergia*pctEst;
+  const est_topeViv=d.numViv*d.topeVivEstatal;
+  const est_viv=Math.min(est_porPct,est_topeViv);
+  const est_locales=(d.numLocales>0 && d.supLocales>0)?d.supLocales*d.euroM2LocalEstatal:0;
+  const estatalTotal=est_viv+est_locales;
+
+  // B) REHABILITA energía — depende de la ZONA; fuera de ámbito (NINGUNA) NO se incluye
+  const zona=C.rehabilita.zonas[d.zona]||C.rehabilita.zonas.NINGUNA;
+  const fueraAmbito=(d.zona==='NINGUNA');
+  const reh_pct=fueraAmbito?0:(d.pctRehab/100);
+  const reh_porPct=baseEnergia*reh_pct;
+  const reh_topeViv=fueraAmbito?0:(d.numViv*d.topeVivRehab);
+  const rehabTotal=fueraAmbito?0:Math.min(reh_porPct,reh_topeViv);
+
+  // Subvenciones energía capadas a la base de energía
+  const grantsBrutos=estatalTotal+rehabTotal;
+  const limiteGrants=(C.cap.limitarAlCosteReal?baseEnergia:Infinity)*(C.cap.porcentajeMaximo||1);
+  const grantsCapados=Math.min(grantsBrutos,limiteGrants);
+  const recorteGrants=Math.max(0,grantsBrutos-grantsCapados);
+
+  // D) ACCESIBILIDAD (estatal + municipal) sobre el coste de accesibilidad (carve-out)
+  const acc=C.accesibilidad;
+  const nivel=acc.estatal.niveles[d.nivelAcc]||acc.estatal.niveles.general;
+  const acc_est=Math.min(accCoste*(d.pctAccEstatal/100), d.numViv*nivel.euroViv);
+  const acc_cam=Math.min(accCoste*(d.pctAccCam/100), d.numViv*d.topeAccCam);
+  const accBrutos=acc_est+acc_cam;
+  const accCapados=Math.min(accBrutos, accCoste*(C.cap.porcentajeMaximo||1));
+  const recorteAcc=Math.max(0,accBrutos-accCapados);
+
+  // Coste total para la comunidad = subvencionable + tasas (el ascensor ya está DENTRO del subvencionable)
+  const costeTotal=e.costeTotalComunidad;
+
+  // C) CAE: 6% del COSTE TOTAL de la comunidad (o importe manual si se indica)
+  const caePct=(d.caePct!=null && d.caePct!==''? d.caePct : ((C.cae&&C.cae.pct!=null)?C.cae.pct*100:6));
+  const caeAuto=costeTotal*(caePct/100);
+  const caeImporte=(d.cae>0? d.cae : caeAuto);
+  const caeTotal=d.caeInc?caeImporte:0;
+
+  const ayudasGrants=grantsCapados+accCapados;
+  const ayudasTotales=ayudasGrants+caeTotal;
+  const obtenibleReal=Math.min(ayudasTotales,costeTotal);
+  const recorteFinal=Math.max(0,ayudasTotales-obtenibleReal);
+
+  const restoVecinos=Math.max(0,costeTotal-obtenibleReal);
+  const restoPorViv=d.numViv>0?restoVecinos/d.numViv:0;
+  const subvPorViv=d.numViv>0?obtenibleReal/d.numViv:0;
+  const pctSobrePEM=e.pem>0?obtenibleReal/e.pem:0;
+  const pctSobreCoste=costeTotal>0?obtenibleReal/costeTotal:0;
+
+  // Topes de subvención por vivienda (informativo)
+  const topeEstatalViv=d.topeVivEstatal, topeRehabViv=d.topeVivRehab, topeAccViv=(d.topeAccCam||0);
+
+  // Deducción IRPF (60% de lo que paga el vecino; máx 5.000 €/año, 15.000 € en 3 años)
+  const IR=C.irpf||{pct:0.60,maxTotal:15000,maxAnual:5000};
+  const irpfPotencial=restoPorViv*IR.pct;
+  const irpfDeduccion=Math.min(irpfPotencial,IR.maxTotal);
+  const irpfAnios=irpfDeduccion>0?Math.min(Math.ceil(IR.maxTotal/IR.maxAnual),Math.max(1,Math.ceil(irpfDeduccion/IR.maxAnual))):0;
+  const irpfAnual=irpfAnios>0?Math.min(IR.maxAnual,irpfDeduccion/irpfAnios):0;
+  const netoTrasIrpf=Math.max(0,restoPorViv-irpfDeduccion);
+
+  let sem='rojo';
+  if(pctSobreCoste>=C.semaforo.verde) sem='verde';
+  else if(pctSobreCoste>=C.semaforo.ambar) sem='ambar';
+
+  return {e,tramo,zona,fueraAmbito,reh_pct,pctEst,baseEnergia,
+    est_porPct,est_topeViv,est_viv,est_locales,estatalTotal,
+    reh_porPct,reh_topeViv,rehabTotal,grantsBrutos,grantsCapados,recorteGrants,
+    accCoste,nivel,acc_est,acc_cam,accBrutos,accCapados,recorteAcc,
+    caeTotal,caePct,caeImporte,ayudasGrants,ayudasTotales,obtenibleReal,recorteFinal,costeTotal,
+    topeEstatalViv,topeRehabViv,topeAccViv,
+    irpfPct:IR.pct,irpfDeduccion,irpfAnios,irpfAnual,irpfMaxTotal:IR.maxTotal,irpfMaxAnual:IR.maxAnual,netoTrasIrpf,
+    costeReal:costeTotal,restoVecinos,restoPorViv,subvPorViv,pctSobrePEM,pctSobreCoste,sem};
+}
+
+/* ===== Lectura + validación ===== */
+function leerDatos(){
+  return {
+    direccion:$('#direccion').value.trim(),distrito:$('#distrito').value,municipio:($('#municipio')?$('#municipio').value.trim():'Madrid'),anio:num($('#anio').value),
+    numViv:num($('#numViv').value),numLocales:num($('#numLocales').value),
+    supTotal:num($('#supTotal').value),supViv:num($('#supViv').value),supLocales:num($('#supLocales').value),
+    zona:$('#zona').value,ahorroNivel:$('#ahorroNivel').value,
+    pctEstatal:num($('#pctEstatal').value),topeVivEstatal:num($('#topeVivEstatal').value),euroM2LocalEstatal:num($('#euroM2Local').value),
+    pctRehab:num($('#pctRehab').value),topeVivRehab:num($('#topeVivRehab').value),
+    actuaciones:[...$$('#actChecks input:checked')].map(i=>i.value),
+    capitulos:leerCapitulos(),ivaObra:num($('#ivaObra').value),honTec:num($('#honTec').value),
+    honAgente:num($('#honAgente').value),ivaHon:num($('#ivaHon').value),tasasPct:num($('#tasasPct').value),
+    costeAccesibilidad:num($('#costeAcc').value),nivelAcc:$('#nivelAcc').value,
+    pctAccEstatal:num($('#pctAccEstatal').value),pctAccCam:num($('#pctAccCam').value),topeAccCam:num($('#topeAccCam').value),
+    vuln:$('#vuln').value,vulnViv:num($('#vulnViv').value),cae:num($('#cae').value),caePct:num($('#caePct').value),caeInc:$('#caeInc').checked
+  };
+}
+function validar(){
+  let ok=true;
+  const marca=(id,cond)=>{const el=$('#'+id);if(!el)return;const msg=$(`.errmsg[data-for="${id}"]`);
+    if(cond){el.classList.add('err');if(msg)msg.classList.add('show');el.setAttribute('aria-invalid','true');ok=false;}
+    else{el.classList.remove('err');if(msg)msg.classList.remove('show');el.removeAttribute('aria-invalid');}};
+  marca('direccion',$('#direccion').value.trim()==='');
+  marca('numViv',num($('#numViv').value)<1);
+  const pe=$('#pemErr'); if(sumaCapitulos()<=0){if(pe)pe.classList.add('show');ok=false;} else if(pe){pe.classList.remove('show');}
+  ['anio','numLocales','supTotal','supViv','supLocales','honTec','honAgente','cae','vulnViv','costeAcc'].forEach(id=>{const el=$('#'+id);if(el&&el.value!==''&&num(el.value)<0)marca(id,true);});
+  return ok;
+}
+
+/* ===== Gráficos ===== */
+function donutSVG(pct){
+  const r=52,c=2*Math.PI*r,val=Math.max(0,Math.min(1,pct)),dash=c*val;
+  const txt=(val*100).toLocaleString('es-ES',{maximumFractionDigits:0})+'%';
+  return `<svg width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="Porcentaje subvencionado: ${txt}">
+    <circle cx="70" cy="70" r="${r}" fill="none" stroke="#ece8e8" stroke-width="16"/>
+    <circle cx="70" cy="70" r="${r}" fill="none" stroke="#9B2D2D" stroke-width="16" stroke-linecap="round" stroke-dasharray="${dash} ${c}" transform="rotate(-90 70 70)"/>
+    <text x="70" y="66" text-anchor="middle" font-size="26" font-weight="800" fill="#3a3a3a">${txt}</text>
+    <text x="70" y="88" text-anchor="middle" font-size="11" fill="#5b6770">subvencionado</text></svg>`;
+}
+function infoRow(label,val,formula,cls=''){
+  return `<tr class="${cls}"><td>${label} <span class="info" title="${formula.replace(/"/g,'&quot;')}" role="img" aria-label="Cálculo: ${formula.replace(/"/g,'&quot;')}">i</span>
+    <span class="formula">${formula}</span></td><td class="num">${val}</td></tr>`;
+}
+function infoRow3(label,c2,c3,formula){
+  return `<tr><td>${label} <span class="info" title="${formula.replace(/"/g,'&quot;')}" role="img" aria-label="Cálculo: ${formula.replace(/"/g,'&quot;')}">i</span>
+    <span class="formula">${formula}</span></td><td class="num">${c2}</td><td class="num">${c3}</td></tr>`;
+}
+
+/* ===== Render del informe ===== */
+function renderInforme(){
+  const d=leerDatos(); const r=calcular(d);
+  const fechaHoy=new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'});
+  const hayAcc=r.accCoste>0;
+
+  // Reparto sobre coste total
+  const base=r.costeReal>0?r.costeReal:1;
+  const offset=r.obtenibleReal;
+  const grantsPart=Math.min(r.grantsCapados,offset);
+  const tras1=Math.max(0,offset-grantsPart);
+  const accPart=Math.min(r.accCapados,tras1);
+  const caePart=Math.max(0,tras1-accPart);
+  const estPart=r.grantsBrutos>0?grantsPart*(r.estatalTotal/r.grantsBrutos):0;
+  const rehPart=Math.max(0,grantsPart-estPart);
+  const rehPartTot=rehPart+accPart;  // el ascensor (Línea Accesible) va junto al Plan Rehabilita en la barra
+  const pEst=estPart/base*100,pReh=rehPartTot/base*100,pCae=caePart/base*100;
+  const pResto=Math.max(0,100-pEst-pReh-pCae);
+
+  const actTxt=d.actuaciones.length?d.actuaciones.map(id=>(ACTUACIONES.find(a=>a.id===id)||{}).txt).join(' · '):'—';
+
+  // Bloque accesibilidad (D)
+  let accHTML='';
+  if(hayAcc){
+    accHTML=`<div class="sub" style="margin-top:10px">Plan Rehabilita Madrid · Línea Accesible (ascensor)</div>
+    <table><caption class="visually-hidden">Línea Accesible (ascensor)</caption>
+      <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
+      ${infoRow(`Ascensor · ${fmtPct(d.pctAccCam/100)} (tope ${fmtEUR(d.topeAccCam)}/viv)`, fmtEUR(r.acc_cam), `mín( ${fmtEUR(r.accCoste)} (coste ascensor) × ${fmtPct(d.pctAccCam/100)} ; ${fmtNum(d.numViv)} × ${fmtEUR(d.topeAccCam)}/viv ) = ${fmtEUR(r.acc_cam)}`)}
+      ${r.acc_est>0?infoRow(`Ayuda estatal de accesibilidad · ${fmtPct(d.pctAccEstatal/100)} (${r.nivel.etiqueta})`, fmtEUR(r.acc_est), `mín( ${fmtEUR(r.accCoste)} × ${fmtPct(d.pctAccEstatal/100)} ; ${fmtNum(d.numViv)} × ${fmtEUR(r.nivel.euroViv)}/viv )`):''}
+      ${r.recorteAcc>0?infoRow('Ajuste por tope (100 % del coste del ascensor)','− '+fmtEUR(r.recorteAcc),`${fmtEUR(r.accBrutos)} − ${fmtEUR(r.accCoste)} = ${fmtEUR(r.recorteAcc)}`):''}
+      <tr class="total"><td>TOTAL LÍNEA ACCESIBLE</td><td class="num">${fmtEUR(r.accCapados)}</td></tr>
+      </tbody></table>`;
+  }
+
+  // Avisos
+  let avisos='';
+  if(d.zona==='NINGUNA') avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">⚠️</span><div>Edificio <b>fuera de ámbito ZETU/ZIRE</b>: el Plan Rehabilita Madrid no aplicaría incremento. Verifica la zona en el visor del Ayuntamiento de Madrid.</div></div>`;
+  avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">📌</span><div>Cuantías del <b>Plan Rehabilita Madrid 2026</b> (Ayuntamiento de Madrid · BOAM nº 10138) <b>provisionales</b> hasta verificar el Anexo I. Plan Estatal verificado en el BOE (RD 326/2026). Plazo municipal de solicitud: <b>3-jun a 30-sep-2026</b>.</div></div>`;
+  if(d.vuln!=='no'){ const nv=d.vuln==='si'?d.numViv:d.vulnViv;
+    avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">♿</span><div><b>Vulnerabilidad ${d.vuln==='si'?'generalizada':'parcial'}.</b> ${nv>0?`${nv} vivienda(s) indicadas. `:''}En casos justificados la ayuda puede llegar al <b>100 %</b> del coste. Cálculo ya limitado al 100 %.</div></div>`; }
+  if(hayAcc) avisos+=`<div class="avisobox acc"><span class="ic" aria-hidden="true">♿</span><div><b>Accesibilidad:</b> los % aplicados (estatal ${fmtPct(d.pctAccEstatal/100)} · CAM ${fmtPct(d.pctAccCam/100)}) son los que has indicado. Edificio anterior a 1998 e IEE registrado suelen ser requisitos del Plan Rehabilita.</div></div>`;
+
+  const semTxt={verde:'VIABILIDAD ALTA',ambar:'VIABILIDAD MEDIA',rojo:'VIABILIDAD AJUSTADA'}[r.sem];
+  const semSub={verde:'La subvención cubre la mayor parte del coste.',ambar:'Subvención relevante con aportación vecinal significativa.',rojo:'Aportación vecinal alta; revisa tramo de ahorro y zona.'}[r.sem];
+
+  $('#informeBody').innerHTML=`
+    <div class="doc-head">
+      <img class="logo-img" src="https://proyecton.es/wp-content/uploads/2025/08/LOGO_TRANSPARENTE_sombra-scaled.png" alt="Revestimientos Proyecton" onerror="this.style.display='none'">
+      <div><h2>Informe de Subvenciones a la Rehabilitación</h2></div>
+      <div class="who"><b>Proyecton Global Energy SL</b>CIF B86608312 · Leganés (Madrid)<br>info@proyecton.es</div>
+    </div>
+    <p class="doc-sub"><b>${d.direccion||'(sin dirección)'}</b> · ${d.municipio||'Madrid'}${(d.distrito&&!/otro/i.test(d.distrito))?' ('+d.distrito+')':''} · ${fmtNum(d.numViv)} viviendas · ${fechaHoy}</p>
+
+    <div class="meta-edif">
+      <div><span>Locales</span><b>${fmtNum(d.numLocales)}</b></div>
+      <div><span>Año</span><b>${d.anio||'—'}</b></div>
+      <div><span>Sup. total</span><b>${fmtNum(d.supTotal)} m²</b></div>
+      <div><span>Sup. viviendas</span><b>${fmtNum(d.supViv)} m²</b></div>
+      <div><span>Sup. locales</span><b>${fmtNum(d.supLocales)} m²</b></div>
+      <div><span>Zona</span><b>${d.zona==='NINGUNA'?'No declarada':d.zona}</b></div>
+      <div><span>% Estatal</span><b>${fmtPct(r.pctEst)}</b></div>
+      <div><span>% Rehabilita</span><b>${fmtPct(r.reh_pct)}</b></div>
+    </div>
+    <p class="doc-sub"><span style="color:var(--gris)">Actuaciones:</span> ${actTxt}</p>
+
+    <div class="kpis">
+      <div class="kpi coste"><div class="lbl">🏗️ Coste total comunidad</div><div class="val">${fmtEUR(r.costeReal)}</div><div class="sml">PEM ${fmtEUR(r.e.pem)}</div></div>
+      <div class="kpi subv"><div class="lbl">💶 Ayuda obtenible</div><div class="val">${fmtEUR(r.obtenibleReal)}</div><div class="sml">${fmtPct(r.pctSobreCoste)} del coste</div></div>
+      <div class="kpi resto"><div class="lbl">👥 Resto / vivienda</div><div class="val">${fmtEUR(r.restoPorViv)}</div><div class="sml">total ${fmtEUR(r.restoVecinos)}</div></div>
+      <div class="kpi via"><div class="lbl">🏠 Ayuda / vivienda</div><div class="val">${fmtEUR(r.subvPorViv)}</div><div class="sml">media estimada</div></div>
+    </div>
+
+    <div class="hero">
+      <div class="semaforo ${r.sem}"><span class="dot" aria-hidden="true"></span><div>${semTxt}<small>${semSub}</small></div></div>
+      <div class="charts" style="margin-top:0">
+        <div class="donut-wrap">${donutSVG(r.pctSobreCoste)}<div class="cap">sobre coste total</div></div>
+        <div></div>
+      </div>
+    </div>
+
+    <div class="sub" style="margin-top:14px">Reparto de la financiación</div>
+    <div class="stack" role="img" aria-label="Reparto: Estatal ${fmtEUR(r.estatalTotal)}, Rehabilita Madrid ${fmtEUR(r.rehabTotal+r.accCapados)}, CAE ${fmtEUR(r.caeTotal)}, vecinos ${fmtEUR(r.restoVecinos)}">
+      ${pEst>0?`<div style="width:${pEst}%;background:#9B2D2D">${pEst>=9?fmtPct(estPart/base):''}</div>`:''}
+      ${pReh>0?`<div style="width:${pReh}%;background:#c75d52">${pReh>=9?fmtPct(rehPartTot/base):''}</div>`:''}
+      ${pCae>0?`<div style="width:${pCae}%;background:#b08968">${pCae>=9?fmtPct(caePart/base):''}</div>`:''}
+      ${pResto>0?`<div style="width:${pResto}%;background:#cfd4d8;color:#3a3a3a">${pResto>=9?fmtPct(pResto/100):''}</div>`:''}
+    </div>
+    <div class="legend">
+      <span><i style="background:#9B2D2D"></i>Estatal · ${fmtEUR(r.estatalTotal)}</span>
+      <span><i style="background:#c75d52"></i>Rehabilita Madrid${hayAcc?' (incl. ascensor)':''} · ${fmtEUR(r.rehabTotal+r.accCapados)}</span>
+      <span><i style="background:#b08968"></i>CAE · ${fmtEUR(r.caeTotal)}</span>
+      <span><i style="background:#cfd4d8"></i>Vecinos · ${fmtEUR(r.restoVecinos)}</span>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="sub">Desglose del presupuesto</div>
+        <table><caption class="visually-hidden">Desglose del presupuesto</caption>
+        <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
+        ${d.capitulos.map((c,i)=>`<tr><td>${String(i+1).padStart(2,'0')} · ${c.nombre||'Capítulo'}</td><td class="num">${fmtEUR(c.importe)}</td></tr>`).join('')}
+        <tr class="subtot"><td>PEM</td><td class="num">${fmtEUR(r.e.pem)}</td></tr>
+        ${infoRow(`IVA obra (${fmtNum(d.ivaObra)} %)`,fmtEUR(r.e.ivaObraEur),`${fmtEUR(r.e.pem)} × ${fmtNum(d.ivaObra)}%`)}
+        ${infoRow(`Honorarios téc. + IVA`,fmtEUR(r.e.honTecConIva),`${fmtEUR(r.e.honTec)} + IVA ${fmtNum(d.ivaHon)}%`)}
+        ${r.e.honAgente>0?infoRow('Agente rehabilitador + IVA',fmtEUR(r.e.honAgenteConIva),`${fmtEUR(r.e.honAgente)} + IVA`):''}
+        <tr class="total"><td>COSTE SUBVENCIONABLE</td><td class="num">${fmtEUR(r.e.costeSubvencionable)}</td></tr>
+        ${hayAcc?`<tr><td style="font-style:italic;color:var(--gris)">— de los cuales, accesibilidad/ascensor (75 %)</td><td class="num">${fmtEUR(r.accCoste)}</td></tr><tr><td style="font-style:italic;color:var(--gris)">— resto, energía</td><td class="num">${fmtEUR(r.baseEnergia)}</td></tr>`:''}
+        ${infoRow(`Tasas/ICIO (${fmtNum(d.tasasPct)} % PEM)`,fmtEUR(r.e.tasasEur),`${fmtEUR(r.e.pem)} × ${fmtNum(d.tasasPct)}%`)}
+        <tr class="total"><td>COSTE TOTAL COMUNIDAD</td><td class="num">${fmtEUR(r.costeReal)}</td></tr>
+        </tbody></table>
+      </div>
+      <div>
+        <div class="sub">A) Plan Estatal 2026-2030</div>
+        <table><caption class="visually-hidden">Plan Estatal</caption>
+        <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
+        ${infoRow(`Subvención (${fmtPct(r.pctEst)} del coste)`,fmtEUR(r.est_porPct),`${fmtEUR(r.baseEnergia)} (base energía) × ${fmtPct(r.pctEst)}`)}
+        ${infoRow(`Tope viviendas`,fmtEUR(r.est_topeViv),`${fmtNum(d.numViv)} × ${fmtEUR(d.topeVivEstatal)}/viv`)}
+        ${infoRow(`Viviendas (la menor)`,fmtEUR(r.est_viv),`mín(${fmtEUR(r.est_porPct)};${fmtEUR(r.est_topeViv)})`,'subtot')}
+        ${(d.numLocales>0 && r.est_locales>0)?infoRow(`Locales (${fmtNum(d.numLocales)})`,fmtEUR(r.est_locales),`${fmtNum(d.supLocales)} m² × ${fmtEUR(d.euroM2LocalEstatal)}/m²`):''}
+        <tr class="total"><td>TOTAL ESTATAL</td><td class="num">${fmtEUR(r.estatalTotal)}</td></tr>
+        </tbody></table>
+        <div class="sub" style="margin-top:10px">B) Plan Rehabilita Madrid 2026 · ${r.fueraAmbito?'fuera de ámbito':d.zona}</div>
+        ${r.fueraAmbito?`<div class="avisobox"><span class="ic" aria-hidden="true">ℹ️</span><div>El edificio está <b>fuera de ámbito ZETU/ZIRE</b>: el Plan Rehabilita Madrid <b>no se aplica</b> (0 €).</div></div>`:`<table><caption class="visually-hidden">Plan Rehabilita</caption>
+        <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
+        ${infoRow(`Subvención (${fmtPct(r.reh_pct)} del coste)`,fmtEUR(r.reh_porPct),`${fmtEUR(r.baseEnergia)} (base energía) × ${fmtPct(r.reh_pct)}`)}
+        ${infoRow(`Tope (${fmtEUR(d.topeVivRehab)}/viv)`,fmtEUR(r.reh_topeViv),`${fmtNum(d.numViv)} × ${fmtEUR(d.topeVivRehab)}`)}
+        <tr class="total"><td>TOTAL REHABILITA</td><td class="num">${fmtEUR(r.rehabTotal)}</td></tr>
+        </tbody></table>`}
+        ${accHTML}
+      </div>
+    </div>
+
+    <div class="sub">C) Resumen económico</div>
+    <table><caption class="visually-hidden">Resumen comparativo</caption>
+    <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
+      <tr><td>Coste total de actuación para la comunidad</td><td class="num">${fmtEUR(r.costeReal)}</td></tr>
+      ${infoRow('Subvenciones energía (Estatal+Rehabilita)',fmtEUR(r.grantsBrutos),`${fmtEUR(r.estatalTotal)} + ${fmtEUR(r.rehabTotal)}`,'subtot')}
+      ${r.recorteGrants>0?infoRow('Ajuste tope energía','− '+fmtEUR(r.recorteGrants),`No superan la base de energía (${fmtEUR(r.baseEnergia)})`):''}
+      ${infoRow('Subvenciones energía aplicables',fmtEUR(r.grantsCapados),`mín(${fmtEUR(r.grantsBrutos)};${fmtEUR(r.baseEnergia)})`)}
+      ${hayAcc?infoRow('Plan Rehabilita · Línea Accesible (ascensor)',fmtEUR(r.accCapados),`Ascensor ${fmtEUR(r.acc_cam)}${r.acc_est>0?' + estatal '+fmtEUR(r.acc_est):''}, capado a ${fmtEUR(r.accCoste)} (coste ascensor)`):''}
+      ${infoRow('CAE ('+fmtNum(r.caePct)+'% del coste total)',fmtEUR(r.caeTotal),d.caeInc?(d.cae>0?`Importe manual = ${fmtEUR(r.caeTotal)}`:`${fmtEUR(r.costeReal)} (coste total) × ${fmtNum(r.caePct)}% = ${fmtEUR(r.caeTotal)}`):'No incluido')}
+      <tr class="total"><td>AYUDA TOTAL OBTENIBLE</td><td class="num">${fmtEUR(r.obtenibleReal)}</td></tr>
+      ${infoRow('% ayuda sobre PEM',fmtPct(r.pctSobrePEM),`${fmtEUR(r.obtenibleReal)} / ${fmtEUR(r.e.pem)}`)}
+      <tr class="total"><td>RESTO A PAGAR POR LOS VECINOS</td><td class="num">${fmtEUR(r.restoVecinos)}</td></tr>
+      ${infoRow('Resto por vivienda',fmtEUR(r.restoPorViv),`${fmtEUR(r.restoVecinos)} / ${fmtNum(d.numViv)} viviendas`)}
+    </tbody></table>
+
+    <div class="sub">Topes máximos de subvención por vivienda</div>
+    <table><caption class="visually-hidden">Topes por vivienda</caption>
+    <thead><tr><th scope="col">Programa</th><th scope="col" class="num">Máximo por vivienda</th><th scope="col" class="num">Total (${fmtNum(d.numViv)} viv.)</th></tr></thead><tbody>
+      ${infoRow3('Plan Estatal 2026-2030',fmtEUR(r.topeEstatalViv),fmtEUR(r.topeEstatalViv*d.numViv),`${fmtEUR(r.topeEstatalViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeEstatalViv*d.numViv)}`)}
+      ${infoRow3('Plan Rehabilita Madrid',fmtEUR(r.topeRehabViv),fmtEUR(r.topeRehabViv*d.numViv),`${fmtEUR(r.topeRehabViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeRehabViv*d.numViv)}`)}
+      ${hayAcc?infoRow3('Accesibilidad (ascensor)',fmtEUR(r.topeAccViv),fmtEUR(r.topeAccViv*d.numViv),`${fmtEUR(r.topeAccViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeAccViv*d.numViv)}`):''}
+      <tr class="total"><td>SUBVENCIÓN MÁXIMA POR VIVIENDA</td><td class="num">${fmtEUR(r.topeEstatalViv+r.topeRehabViv+(hayAcc?r.topeAccViv:0))}</td><td class="num">${fmtEUR((r.topeEstatalViv+r.topeRehabViv+(hayAcc?r.topeAccViv:0))*d.numViv)}</td></tr>
+    </tbody></table>
+
+    <div class="sub">Por vivienda: lo que paga el vecino y desgravación IRPF</div>
+    <table><caption class="visually-hidden">Coste por vivienda</caption>
+    <thead><tr><th scope="col">Concepto (por vivienda)</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
+      <tr><td>Subvención media obtenida por vivienda</td><td class="num">${fmtEUR(r.subvPorViv)}</td></tr>
+      <tr class="subtot"><td>Resto a pagar por vivienda</td><td class="num">${fmtEUR(r.restoPorViv)}</td></tr>
+      ${infoRow('Desgravación IRPF ('+fmtPct(r.irpfPct)+')',fmtEUR(r.irpfDeduccion),`${fmtPct(r.irpfPct)} de ${fmtEUR(r.restoPorViv)} = ${fmtEUR(r.restoPorViv*r.irpfPct)}, limitado a ${fmtEUR(r.irpfMaxTotal)} (máx ${fmtEUR(r.irpfMaxAnual)}/año · ${r.irpfAnios} año/s)`)}
+      <tr class="total"><td>COSTE NETO por vivienda tras IRPF</td><td class="num">${fmtEUR(r.netoTrasIrpf)}</td></tr>
+    </tbody></table>
+    <div class="avisobox acc"><span class="ic" aria-hidden="true">🧾</span><div><b>Desgravación IRPF (rehabilitación energética):</b> cada vecino puede deducir el <b>${fmtPct(r.irpfPct)}</b> de lo que paga en su declaración de la renta, hasta <b>${fmtEUR(r.irpfMaxAnual)}/año</b> y un máximo de <b>${fmtEUR(r.irpfMaxTotal)} en 3 años</b>. En este caso ≈ <b>${fmtEUR(r.irpfDeduccion)}</b> por vivienda (repartible en ${r.irpfAnios} año/s).</div></div>
+
+    ${avisos}
+
+    <div class="sub">Plazos y requisitos clave</div>
+    <ul class="reqlist twocol">${REQUISITOS.map(x=>`<li>${x}</li>`).join('')}</ul>
+
+    <div class="legalbox"><b>AVISO LEGAL:</b> cuantías <b>ORIENTATIVAS</b>, sujetas a convocatoria vigente, disponibilidad presupuestaria y verificación técnica del ahorro. <b>Plan Estatal</b>: RD 326/2026 (BOE, gestión por las CCAA), cifras verificadas en el BOE. <b>Plan Rehabilita Madrid 2026</b>: Ayuntamiento de Madrid (BOAM nº 10138), cuantías provisionales pendientes de verificar el Anexo I. Los % e importes pueden variar por convocatoria. Este informe no es resolución administrativa ni garantiza la concesión. Generado el ${fechaHoy}.</div>
+
+    <div class="doc-foot">
+      <div><b>Proyecton Global Energy SL</b> · CIF B86608312 · Leganés (Madrid)</div>
+      <div>info@proyecton.es · Rehabilitación integral de edificios en Madrid</div>
+    </div>`;
+}
+
+/* ===== Persistencia ===== */
+const LS_KEY='pge_subv_presupuestos', LS_LAST='pge_subv_borrador';
+function snapshot(){return{
+  direccion:$('#direccion').value,distrito:$('#distrito').value,municipio:($('#municipio')?$('#municipio').value:'Madrid'),anio:$('#anio').value,
+  numViv:$('#numViv').value,tieneLocales:$('#tieneLocales').value,numLocales:$('#numLocales').value,supTotal:$('#supTotal').value,
+  supViv:$('#supViv').value,supLocales:$('#supLocales').value,zona:$('#zona').value,ahorroNivel:$('#ahorroNivel').value,presetRehab:$('#presetRehab').value,
+  pctEstatal:$('#pctEstatal').value,topeVivEstatal:$('#topeVivEstatal').value,euroM2Local:$('#euroM2Local').value,
+  pctRehab:$('#pctRehab').value,topeVivRehab:$('#topeVivRehab').value,
+  actuaciones:[...$$('#actChecks input:checked')].map(i=>i.value),
+  capitulos:leerCapitulos(),ivaObra:$('#ivaObra').value,honTec:$('#honTec').value,honAgente:$('#honAgente').value,
+  ivaHon:$('#ivaHon').value,tasasPct:$('#tasasPct').value,costeAcc:$('#costeAcc').value,nivelAcc:$('#nivelAcc').value,
+  pctAccEstatal:$('#pctAccEstatal').value,pctAccCam:$('#pctAccCam').value,topeAccCam:$('#topeAccCam').value,
+  vuln:$('#vuln').value,vulnViv:$('#vulnViv').value,cae:$('#cae').value,caePct:$('#caePct').value,caeInc:$('#caeInc').checked};}
+function aplicar(s){
+  if(!s)return;
+  const set=(id,v)=>{if($('#'+id)!=null&&v!=null)$('#'+id).value=v;};
+  const setD=(id,v,def)=>set(id,v!=null&&v!==''?v:def);
+  set('direccion',s.direccion);set('distrito',s.distrito);setD('municipio',s.municipio,'Madrid');set('anio',s.anio);set('numViv',s.numViv);
+  setD('tieneLocales',s.tieneLocales,'no');set('numLocales',s.numLocales);set('supTotal',s.supTotal);set('supViv',s.supViv);set('supLocales',s.supLocales);
+  set('zona',s.zona);setD('ahorroNivel',s.ahorroNivel,'parcial');setD('presetRehab',s.presetRehab,'una_letra');
+  setD('pctEstatal',s.pctEstatal,40);setD('topeVivEstatal',s.topeVivEstatal,7500);setD('euroM2Local',s.euroM2Local,90);
+  setD('pctRehab',s.pctRehab,50);setD('topeVivRehab',s.topeVivRehab,8000);
+  setD('ivaObra',s.ivaObra,10);set('honTec',s.honTec);set('honAgente',s.honAgente);setD('ivaHon',s.ivaHon,21);setD('tasasPct',s.tasasPct,4);
+  set('costeAcc',s.costeAcc);setD('nivelAcc',s.nivelAcc,'general');setD('pctAccEstatal',s.pctAccEstatal,70);setD('pctAccCam',s.pctAccCam,75);setD('topeAccCam',s.topeAccCam,10000);
+  set('vuln',s.vuln);set('vulnViv',s.vulnViv);set('cae',s.cae);setD('caePct',s.caePct,6);
+  $('#caeInc').checked=s.caeInc!==false;sincCaeChk();
+  $$('#actChecks input').forEach(i=>{i.checked=(s.actuaciones||[]).includes(i.value);i.closest('.chk').classList.toggle('on',i.checked);});
+  $('#capitulos').innerHTML='';(s.capitulos&&s.capitulos.length?s.capitulos:[{nombre:'',importe:''}]).forEach(c=>addCapitulo(c.nombre,c.importe));
+  toggleVulnViv();toggleLocales();syncOptCards();recalcEco();
+}
+function cargarEjemplo(){
+  const set=(id,v)=>{if($('#'+id))$('#'+id).value=v;};
+  set('direccion','Calle Andrés Torrejón 26');set('distrito','Retiro');set('municipio','Madrid');set('anio','1975');
+  set('numViv','22');set('tieneLocales','si');set('numLocales','3');set('supTotal','');set('supViv','');set('supLocales','870');
+  set('zona','ZIRE');set('ahorroNivel','parcial');set('presetRehab','una_letra');
+  set('pctEstatal','40');set('topeVivEstatal','7500');set('euroM2Local','90');
+  set('pctRehab','50');set('topeVivRehab','8000');
+  set('ivaObra','10');set('honTec','15000');set('honAgente','0');set('ivaHon','21');set('tasasPct','4');
+  set('costeAcc','0');set('nivelAcc','universal');set('pctAccEstatal','70');set('pctAccCam','75');set('topeAccCam','10000');
+  set('vuln','no');set('vulnViv','');set('cae','');set('caePct','6');$('#caeInc').checked=true;
+  $$('#actChecks input').forEach(i=>{i.checked=(i.value==='fachada');i.closest('.chk').classList.toggle('on',i.checked);});
+  $('#capitulos').innerHTML='';
+  addCapitulo('Medios auxiliares','39556.28');addCapitulo('Actuaciones previas y desmont. elementos de fachada','21255.55');
+  addCapitulo('Rehabilitación de fachadas','177927.55');addCapitulo('Seguridad y salud','3800');addCapitulo('Gestión de residuos','4800');
+  sincCaeChk();toggleLocales();syncOptCards();
+}
+function guardarBorrador(){try{localStorage.setItem(LS_LAST,JSON.stringify(snapshot()));}catch(e){}}
+function leerMapa(){try{return JSON.parse(localStorage.getItem(LS_KEY))||{};}catch(e){return{};}}
+function pintarLista(){const m=leerMapa(),sel=$('#listaPres'),prev=sel.value;sel.innerHTML='<option value="">— Presupuestos guardados —</option>';
+  Object.keys(m).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);});sel.value=prev;}
+function guardarPresupuesto(){const nombre=$('#nombrePres').value.trim()||$('#direccion').value.trim();
+  if(!nombre){alert('Indica un nombre o dirección.');return;}const m=leerMapa();m[nombre]=snapshot();
+  try{localStorage.setItem(LS_KEY,JSON.stringify(m));pintarLista();$('#listaPres').value=nombre;flash('Guardado: '+nombre);}catch(e){alert('No se pudo guardar.');}}
+function cargarPresupuesto(){const k=$('#listaPres').value;if(!k){alert('Selecciona un presupuesto.');return;}const m=leerMapa();if(m[k]){aplicar(m[k]);$('#nombrePres').value=k;flash('Cargado: '+k);}}
+function borrarPresupuesto(){const k=$('#listaPres').value;if(!k){alert('Selecciona un presupuesto.');return;}if(!confirm('¿Borrar «'+k+'»?'))return;const m=leerMapa();delete m[k];localStorage.setItem(LS_KEY,JSON.stringify(m));pintarLista();flash('Borrado.');}
+let flashTimer=null;
+function flash(msg){const el=$('#flash');el.textContent=msg;el.style.opacity='1';clearTimeout(flashTimer);flashTimer=setTimeout(()=>el.style.opacity='0',1900);}
+
+/* ===== UI ===== */
+function toggleVulnViv(){$('#vulnVivWrap').style.display=$('#vuln').value==='parcial'?'flex':'none';}
+function toggleLocales(){ const si=$('#tieneLocales').value==='si'; $$('.loc-field').forEach(el=>el.style.display=si?'flex':'none'); if(!si){ if($('#numLocales'))$('#numLocales').value='0'; if($('#supLocales'))$('#supLocales').value='0'; } }
+// Resalta la tarjeta de opción que coincide con el valor del select oculto
+function syncOptCards(){ $$('.opt-card').forEach(b=>{ const sel=$('#'+b.dataset.sel); const on=!!sel && sel.value===b.dataset.value; b.classList.toggle('on',on); b.setAttribute('aria-checked',on?'true':'false'); }); }
+function sincCaeChk(){$('#caeChkLbl').classList.toggle('on',$('#caeInc').checked);}
+function verInforme(){
+  if(!validar()){flash('Revisa los campos marcados.');window.scrollTo({top:0,behavior:'smooth'});return;}
+  renderInforme();
+  document.body.classList.remove('modo-edicion');document.body.classList.add('modo-informe');
+  $('#btnVerInforme').style.display='none';$('#btnVolver').style.display='';$('#estadoPill').textContent='Modo informe';
+  guardarBorrador();window.scrollTo({top:0,behavior:'smooth'});
+}
+function volverEdicion(){document.body.classList.add('modo-edicion');document.body.classList.remove('modo-informe');
+  $('#btnVerInforme').style.display='';$('#btnVolver').style.display='none';$('#estadoPill').textContent='Modo edición';}
+
+function init(){
+  rellenarDistritos();construirChecks();refrescarSelectoresDesdeCuantias();
+  let prev=null;try{prev=JSON.parse(localStorage.getItem(LS_LAST));}catch(e){}
+  if(prev){aplicar(prev);}else{cargarEjemplo();}
+  pintarLista();toggleVulnViv();toggleLocales();sincCaeChk();actualizarSumaCap();syncOptCards();
+
+  $('#btnVerInforme').addEventListener('click',verInforme);
+  $('#btnVolver').addEventListener('click',volverEdicion);
+  $('#btnAddCap').addEventListener('click',()=>addCapitulo());
+  $('#btnEjemplo').addEventListener('click',()=>{cargarEjemplo();actualizarSumaCap();flash('Ejemplo cargado.');});
+  $('#ahorroNivel').addEventListener('change',aplicarTramoEstatal);
+  $('#zona').addEventListener('change',setRehabFromZona);
+  $('#presetRehab').addEventListener('change',setRehabFromZona);
+  $('#btnDetectarZona').addEventListener('click',detectarZona);
+  $('#btnCatastro').addEventListener('click',datosCatastro);
+  $('#pdfFile').addEventListener('change',e=>{ if(e.target.files[0]) importarPDF(e.target.files[0]); });
+  $('#btnImportPDF').addEventListener('click',()=>{ const f=$('#pdfFile').files[0]; if(f){ importarPDF(f); } else { const s=$('#impStatus'); s.classList.add('show'); s.textContent='Elige primero un archivo PDF.'; } });
+  $('#vuln').addEventListener('change',toggleVulnViv);
+  $('#tieneLocales').addEventListener('change',()=>{toggleLocales();recalcEco();});
+  $('#caeInc').addEventListener('change',sincCaeChk);
+  $('#btnGuardar').addEventListener('click',guardarPresupuesto);
+  $('#btnCargar').addEventListener('click',cargarPresupuesto);
+  $('#btnBorrar').addEventListener('click',borrarPresupuesto);
+  $('#btnPDF').addEventListener('click',()=>{if(document.body.classList.contains('modo-edicion'))verInforme();setTimeout(()=>window.print(),250);});
+  $('#btnFormulas').addEventListener('click',()=>{const on=document.body.classList.toggle('show-formulas');
+    $('#btnFormulas').textContent=on?'ƒ Ocultar fórmulas':'ƒ Mostrar fórmulas';$('#btnFormulas').setAttribute('aria-pressed',on);});
+  // Clic en el icono "ⓘ" despliega/oculta su fórmula (delegado: sobrevive al re-render)
+  document.addEventListener('click',e=>{ const i=e.target.closest('.info'); if(!i) return; const f=i.parentElement&&i.parentElement.querySelector('.formula'); if(f){ e.preventDefault(); f.classList.toggle('open'); } });
+  // Tarjetas de opción (ahorro / mejora de calificación): fijan el select oculto y recalculan
+  document.addEventListener('click',e=>{ const b=e.target.closest('.opt-card'); if(!b) return; const sel=$('#'+b.dataset.sel); if(sel){ sel.value=b.dataset.value; sel.dispatchEvent(new Event('change',{bubbles:true})); syncOptCards(); } });
+  $('#form').addEventListener('input',()=>{recalcEco();clearTimeout(window.__sv);window.__sv=setTimeout(guardarBorrador,600);});
+  $$('input').forEach(i=>i.addEventListener('input',()=>{i.classList.remove('err');i.removeAttribute('aria-invalid');const m=$(`.errmsg[data-for="${i.id}"]`);if(m)m.classList.remove('show');}));
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
+
