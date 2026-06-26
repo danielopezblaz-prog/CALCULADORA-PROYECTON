@@ -159,6 +159,14 @@
   .semaforo.rojo{background:#fbeae8;color:var(--bad);} .semaforo.rojo .dot{background:var(--bad);}
   .semaforo small{font-weight:400;display:block;opacity:.9;font-size:11.5px;}
 
+  /* selector de plantilla (modo) */
+  .modo-wrap{margin:0 0 16px;padding:12px 14px;border:1px solid var(--linea);border-radius:12px;background:var(--granate-cl);}
+  .modo-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+  .modo-btn{flex:1 1 200px;cursor:pointer;border:1.5px solid var(--linea);background:#fff;color:var(--carbon);
+    border-radius:10px;padding:11px 12px;font-weight:700;font-size:14px;text-align:center;transition:.12s;}
+  .modo-btn:hover{border-color:var(--granate);}
+  .modo-btn.on{background:var(--granate);border-color:var(--granate);color:#fff;box-shadow:0 2px 8px rgba(155,45,45,.25);}
+
   /* charts */
   .charts{display:grid;grid-template-columns:1fr 150px;gap:16px;align-items:center;margin-top:14px;}
   @media(max-width:620px){.charts{grid-template-columns:1fr;}}
@@ -372,6 +380,14 @@
     <section class="card" aria-labelledby="h2e">
       <h2 class="head" id="h2e"><span class="num" aria-hidden="true">2</span> 📍 Clasificación urbanística y ahorro energético</h2>
       <div class="body">
+        <div class="modo-wrap">
+          <div class="sub" style="margin-top:0">Plantilla de subvenciones <span class="hint" style="font-weight:400">— elige qué planes incluir</span></div>
+          <div class="modo-tabs" role="radiogroup" aria-label="Plantilla de subvenciones">
+            <button type="button" class="modo-btn" id="modoCompleto" data-modo="completo" role="radio">🏛️ Estatal + Rehabilita Madrid</button>
+            <button type="button" class="modo-btn" id="modoEstatal" data-modo="estatal" role="radio">🇪🇸 Solo Plan Estatal</button>
+          </div>
+          <span class="hint" id="modoHint" aria-live="polite"></span>
+        </div>
         <div class="sub" style="margin-top:0">Detección automática de zona (geoportal de Madrid)</div>
         <div class="geo-row">
           <button type="button" class="btn-primary btn-sm" id="btnDetectarZona">📍 Detectar zona desde la dirección</button>
@@ -400,11 +416,13 @@
           <button type="button" class="opt-card" role="radio" data-sel="ahorroNivel" data-value="t2"><div class="pc">80 %</div><div class="ti">Ahorro máximo</div><div class="de">Reduces más del 60 % del consumo.</div></button>
         </div>
 
+        <div id="boxCalifReh">
         <div class="sub" style="margin-top:16px">¿Cuánto mejora la calificación energética? <span class="hint" style="font-weight:400">— marca una opción (fija el % del Plan Rehabilita)</span></div>
         <select id="presetRehab" class="visually-hidden" aria-hidden="true" tabindex="-1"><option value="una_letra">una_letra</option><option value="dos_letras">dos_letras</option></select>
         <div class="opt-cards" id="cardsRehab" role="radiogroup" aria-label="Mejora de calificación energética">
           <button type="button" class="opt-card" role="radio" data-sel="presetRehab" data-value="una_letra"><div class="ti">Sube 1 letra</div><div class="de">Ej.: de E a D. O reduces ≥ 30 % la demanda.</div></button>
           <button type="button" class="opt-card" role="radio" data-sel="presetRehab" data-value="dos_letras"><div class="ti">Sube 2 letras o más</div><div class="de">Ej.: de E a C. O reduces ≥ 50 % la demanda.</div></button>
+        </div>
         </div>
 
         <details class="adv" id="advPct">
@@ -415,10 +433,12 @@
             <div class="field"><label for="topeVivEstatal">Tope € / vivienda</label><input id="topeVivEstatal" type="number" min="0" step="1" value="7500"></div>
             <div class="field"><label for="euroM2Local">€ / m² de locales</label><input id="euroM2Local" type="number" min="0" step="1" value="90"></div>
           </div>
+          <div id="boxRehabAdv">
           <div class="sub" style="margin-top:14px">Plan Rehabilita Madrid 2026 — % y tope</div>
           <div class="grid">
             <div class="field"><label for="pctRehab">% subvención (municipal)</label><input id="pctRehab" type="number" min="0" max="100" step="0.1" value="50"></div>
             <div class="field"><label for="topeVivRehab">Tope € / vivienda</label><input id="topeVivRehab" type="number" min="0" step="1" value="8000"></div>
+          </div>
           </div>
         </details>
       </div>
@@ -990,7 +1010,7 @@ function aplicarImport(d){
   if(accPEM>0){
     const iva=(d.ivaObra!=null?d.ivaObra:10)/100;
     set('costeAcc',(accPEM*(1+iva)).toFixed(2));   // ascensor PEM + su IVA
-    set('nivelAcc','universal'); set('pctAccEstatal','0');
+    set('nivelAcc','universal'); set('pctAccEstatal','70');
     const z=$('#zona').value; const cam=(CUANTIAS.accesibilidad.cam.zonas||{})[z];
     set('pctAccCam', cam? (cam.pct*100) : 75); set('topeAccCam', cam? cam.topeViv : 10000);
   } else { set('costeAcc','0'); }
@@ -1068,13 +1088,17 @@ function calcular(d){
   const est_locales=(d.numLocales>0 && d.supLocales>0)?d.supLocales*d.euroM2LocalEstatal:0;
   const estatalTotal=est_viv+est_locales;
 
-  // B) REHABILITA energía — depende de la ZONA; fuera de ámbito (NINGUNA) NO se incluye
+  // MODO: 'completo' = Plan Estatal + Plan Rehabilita Madrid ; 'estatal' = solo Plan Estatal
+  const incluyeRehab=(d.modo!=='estatal');
+
+  // B) PLAN REHABILITA MADRID — solo en modo 'completo'; depende de la ZONA (fuera de ámbito NO se incluye)
   const zona=C.rehabilita.zonas[d.zona]||C.rehabilita.zonas.NINGUNA;
   const fueraAmbito=(d.zona==='NINGUNA');
-  const reh_pct=fueraAmbito?0:(d.pctRehab/100);
+  const aplicaReh=incluyeRehab && !fueraAmbito;
+  const reh_pct=aplicaReh?(d.pctRehab/100):0;
   const reh_porPct=baseEnergia*reh_pct;
-  const reh_topeViv=fueraAmbito?0:(d.numViv*d.topeVivRehab);
-  const rehabTotal=fueraAmbito?0:Math.min(reh_porPct,reh_topeViv);
+  const reh_topeViv=aplicaReh?(d.numViv*d.topeVivRehab):0;
+  const rehabTotal=aplicaReh?Math.min(reh_porPct,reh_topeViv):0;
 
   // Subvenciones energía capadas a la base de energía
   const grantsBrutos=estatalTotal+rehabTotal;
@@ -1082,12 +1106,13 @@ function calcular(d){
   const grantsCapados=Math.min(grantsBrutos,limiteGrants);
   const recorteGrants=Math.max(0,grantsBrutos-grantsCapados);
 
-  // D) ACCESIBILIDAD (estatal + municipal) sobre el coste de accesibilidad (carve-out)
+  // D) ACCESIBILIDAD sobre el coste de accesibilidad (carve-out).
+  //    'completo' → Línea Accesible MUNICIPAL (75%/zona) ; 'estatal' → Plan Estatal Art. 99.2 (70/80%).
   const acc=C.accesibilidad;
   const nivel=acc.estatal.niveles[d.nivelAcc]||acc.estatal.niveles.general;
   const acc_est=Math.min(accCoste*(d.pctAccEstatal/100), d.numViv*nivel.euroViv);
   const acc_cam=Math.min(accCoste*(d.pctAccCam/100), d.numViv*d.topeAccCam);
-  const accBrutos=acc_est+acc_cam;
+  const accBrutos=incluyeRehab?acc_cam:acc_est;
   const accCapados=Math.min(accBrutos, accCoste*(C.cap.porcentajeMaximo||1));
   const recorteAcc=Math.max(0,accBrutos-accCapados);
 
@@ -1112,7 +1137,7 @@ function calcular(d){
   const pctSobreCoste=costeTotal>0?obtenibleReal/costeTotal:0;
 
   // Topes de subvención por vivienda (informativo)
-  const topeEstatalViv=d.topeVivEstatal, topeRehabViv=d.topeVivRehab, topeAccViv=(d.topeAccCam||0);
+  const topeEstatalViv=d.topeVivEstatal, topeRehabViv=aplicaReh?d.topeVivRehab:0, topeAccViv=incluyeRehab?(d.topeAccCam||0):nivel.euroViv;
 
   // Deducción IRPF (60% de lo que paga el vecino; máx 5.000 €/año, 15.000 € en 3 años)
   const IR=C.irpf||{pct:0.60,maxTotal:15000,maxAnual:5000};
@@ -1126,7 +1151,7 @@ function calcular(d){
   if(pctSobreCoste>=C.semaforo.verde) sem='verde';
   else if(pctSobreCoste>=C.semaforo.ambar) sem='ambar';
 
-  return {e,tramo,zona,fueraAmbito,reh_pct,pctEst,baseEnergia,
+  return {e,tramo,zona,fueraAmbito,incluyeRehab,reh_pct,pctEst,baseEnergia,
     est_porPct,est_topeViv,est_viv,est_locales,estatalTotal,
     reh_porPct,reh_topeViv,rehabTotal,grantsBrutos,grantsCapados,recorteGrants,
     accCoste,nivel,acc_est,acc_cam,accBrutos,accCapados,recorteAcc,
@@ -1150,7 +1175,8 @@ function leerDatos(){
     honAgente:num($('#honAgente').value),ivaHon:num($('#ivaHon').value),tasasPct:num($('#tasasPct').value),
     costeAccesibilidad:num($('#costeAcc').value),nivelAcc:$('#nivelAcc').value,
     pctAccEstatal:num($('#pctAccEstatal').value),pctAccCam:num($('#pctAccCam').value),topeAccCam:num($('#topeAccCam').value),
-    vuln:$('#vuln').value,vulnViv:num($('#vulnViv').value),cae:num($('#cae').value),caePct:num($('#caePct').value),caeInc:$('#caeInc').checked
+    vuln:$('#vuln').value,vulnViv:num($('#vulnViv').value),cae:num($('#cae').value),caePct:num($('#caePct').value),caeInc:$('#caeInc').checked,
+    modo:(typeof MODO!=='undefined'?MODO:'completo')
   };
 }
 function validar(){
@@ -1208,23 +1234,43 @@ function renderInforme(){
   // Bloque accesibilidad (D)
   let accHTML='';
   if(hayAcc){
-    accHTML=`<div class="sub" style="margin-top:10px">Plan Rehabilita Madrid · Línea Accesible (ascensor)</div>
-    <table><caption class="visually-hidden">Línea Accesible (ascensor)</caption>
+    const muni=r.incluyeRehab;
+    const accPctV=muni?d.pctAccCam:d.pctAccEstatal;
+    const accTopeV=muni?d.topeAccCam:r.nivel.euroViv;
+    const accVal=muni?r.acc_cam:r.acc_est;
+    const accPorPct=r.accCoste*(accPctV/100);
+    const accTopeTot=d.numViv*accTopeV;
+    const accTit=muni?'Accesibilidad · Plan Rehabilita Madrid (Línea Accesible)':'Accesibilidad · Plan Estatal (Art. 99.2)';
+    const accBaseTxt=muni
+      ? `Cubre ascensores, rampas, plataformas y videoportería. Cuantías municipales: <b>ZETU 75 %</b> (tope 10.000 €/viv) · <b>ZIRE 40 %</b> (tope 4.000 €/viv).`
+      : `RD 326/2026, Art. 99.2: <b>70 %</b> del coste, ampliable al <b>80 %</b> si reside persona con discapacidad ≥ 33 % o mayor de 65 años. Tope por nivel — <b>${r.nivel.etiqueta}: ${fmtEUR(r.nivel.euroViv)}/viv</b>.`;
+    accHTML=`<div class="sub" style="margin-top:10px">${accTit}</div>
+    <p class="hint" style="margin:2px 0 7px">${accBaseTxt}</p>
+    <table><caption class="visually-hidden">Accesibilidad</caption>
       <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
-      ${infoRow(`Ascensor · ${fmtPct(d.pctAccCam/100)} (tope ${fmtEUR(d.topeAccCam)}/viv)`, fmtEUR(r.acc_cam), `mín( ${fmtEUR(r.accCoste)} (coste ascensor) × ${fmtPct(d.pctAccCam/100)} ; ${fmtNum(d.numViv)} × ${fmtEUR(d.topeAccCam)}/viv ) = ${fmtEUR(r.acc_cam)}`)}
-      ${r.acc_est>0?infoRow(`Ayuda estatal de accesibilidad · ${fmtPct(d.pctAccEstatal/100)} (${r.nivel.etiqueta})`, fmtEUR(r.acc_est), `mín( ${fmtEUR(r.accCoste)} × ${fmtPct(d.pctAccEstatal/100)} ; ${fmtNum(d.numViv)} × ${fmtEUR(r.nivel.euroViv)}/viv )`):''}
-      ${r.recorteAcc>0?infoRow('Ajuste por tope (100 % del coste del ascensor)','− '+fmtEUR(r.recorteAcc),`${fmtEUR(r.accBrutos)} − ${fmtEUR(r.accCoste)} = ${fmtEUR(r.recorteAcc)}`):''}
-      <tr class="total"><td>TOTAL LÍNEA ACCESIBLE</td><td class="num">${fmtEUR(r.accCapados)}</td></tr>
+      <tr><td>Coste de actuaciones de accesibilidad</td><td class="num">${fmtEUR(r.accCoste)}</td></tr>
+      ${infoRow(`Subvención (${fmtPct(accPctV/100)} del coste)`,fmtEUR(accPorPct),`${fmtEUR(r.accCoste)} × ${fmtPct(accPctV/100)} = ${fmtEUR(accPorPct)}`)}
+      ${infoRow(`Tope por viviendas (${fmtEUR(accTopeV)}/viv)`,fmtEUR(accTopeTot),`${fmtNum(d.numViv)} viviendas × ${fmtEUR(accTopeV)}/viv = ${fmtEUR(accTopeTot)}`)}
+      ${infoRow('Aplicable (la menor)',fmtEUR(accVal),`mín( ${fmtEUR(accPorPct)} ; ${fmtEUR(accTopeTot)} ) = ${fmtEUR(accVal)}`,'subtot')}
+      ${r.recorteAcc>0?infoRow('Ajuste por tope (100 % del coste)','− '+fmtEUR(r.recorteAcc),`La ayuda no puede superar el coste de accesibilidad (${fmtEUR(r.accCoste)})`):''}
+      <tr class="total"><td>TOTAL ACCESIBILIDAD</td><td class="num">${fmtEUR(r.accCapados)}</td></tr>
       </tbody></table>`;
   }
 
   // Avisos
   let avisos='';
-  if(d.zona==='NINGUNA') avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">⚠️</span><div>Edificio <b>fuera de ámbito ZETU/ZIRE</b>: el Plan Rehabilita Madrid no aplicaría incremento. Verifica la zona en el visor del Ayuntamiento de Madrid.</div></div>`;
-  avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">📌</span><div>Cuantías del <b>Plan Rehabilita Madrid 2026</b> (Ayuntamiento de Madrid · BOAM nº 10138) <b>provisionales</b> hasta verificar el Anexo I. Plan Estatal verificado en el BOE (RD 326/2026). Plazo municipal de solicitud: <b>3-jun a 30-sep-2026</b>.</div></div>`;
+  if(r.incluyeRehab){
+    if(d.zona==='NINGUNA') avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">⚠️</span><div>Edificio <b>fuera de ámbito ZETU/ZIRE</b>: el Plan Rehabilita Madrid no aplicaría incremento. Verifica la zona en el visor del Ayuntamiento de Madrid.</div></div>`;
+    avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">📌</span><div>Incluye <b>Plan Estatal</b> (RD 326/2026, verificado en el BOE) + <b>Plan Rehabilita Madrid 2026</b> (Ayuntamiento de Madrid · BOAM nº 10138, cuantías <b>provisionales</b> hasta verificar el Anexo I). Plazo municipal: <b>3-jun a 30-sep-2026</b>.</div></div>`;
+  } else {
+    avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">📌</span><div>Cálculo solo con el <b>Plan Estatal de Vivienda 2026-2030</b> (RD 326/2026, verificado en el BOE). <b>No</b> se incluyen ayudas del Plan Rehabilita Madrid.</div></div>`;
+  }
   if(d.vuln!=='no'){ const nv=d.vuln==='si'?d.numViv:d.vulnViv;
     avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">♿</span><div><b>Vulnerabilidad ${d.vuln==='si'?'generalizada':'parcial'}.</b> ${nv>0?`${nv} vivienda(s) indicadas. `:''}En casos justificados la ayuda puede llegar al <b>100 %</b> del coste. Cálculo ya limitado al 100 %.</div></div>`; }
-  if(hayAcc) avisos+=`<div class="avisobox acc"><span class="ic" aria-hidden="true">♿</span><div><b>Accesibilidad:</b> los % aplicados (estatal ${fmtPct(d.pctAccEstatal/100)} · CAM ${fmtPct(d.pctAccCam/100)}) son los que has indicado. Edificio anterior a 1998 e IEE registrado suelen ser requisitos del Plan Rehabilita.</div></div>`;
+  if(hayAcc){
+    if(r.incluyeRehab) avisos+=`<div class="avisobox acc"><span class="ic" aria-hidden="true">♿</span><div><b>Accesibilidad:</b> requisitos habituales del Plan Rehabilita — edificio anterior a 1998 e IEE (Informe de Evaluación del Edificio) registrado antes de solicitar. Compatible con la ayuda estatal de accesibilidad si se tramita por separado.</div></div>`;
+    else avisos+=`<div class="avisobox acc"><span class="ic" aria-hidden="true">♿</span><div><b>Accesibilidad:</b> para aplicar el <b>80 %</b> hay que acreditar discapacidad ≥ 33 % o residente mayor de 65 años; en otro caso se aplica el <b>70 %</b>. El tope por vivienda depende del nivel elegido.</div></div>`;
+  }
 
   // Indicador de viabilidad: SIEMPRE en verde y en tono positivo, pero el texto se adapta a la cobertura real (sin afirmar de más).
   const pctCob=Math.round(r.pctSobreCoste*100);
@@ -1249,8 +1295,8 @@ function renderInforme(){
       <div><span>Sup. viviendas</span><b>${fmtNum(d.supViv)} m²</b></div>
       <div><span>Sup. locales</span><b>${fmtNum(d.supLocales)} m²</b></div>
       <div><span>Zona</span><b>${d.zona==='NINGUNA'?'No declarada':d.zona}</b></div>
-      <div><span>% Estatal</span><b>${fmtPct(r.pctEst)}</b></div>
-      <div><span>% Rehabilita</span><b>${fmtPct(r.reh_pct)}</b></div>
+      <div><span>% Estatal energía</span><b>${fmtPct(r.pctEst)}</b></div>
+      ${r.incluyeRehab?`<div><span>% Rehabilita</span><b>${fmtPct(r.reh_pct)}</b></div>`:`<div><span>% Accesibilidad</span><b>${r.accCoste>0?fmtPct(d.pctAccEstatal/100):'—'}</b></div>`}
     </div>
     <p class="doc-sub"><span style="color:var(--gris)">Actuaciones:</span> ${actTxt}</p>
 
@@ -1270,15 +1316,15 @@ function renderInforme(){
     </div>
 
     <div class="sub" style="margin-top:14px">Reparto de la financiación</div>
-    <div class="stack" role="img" aria-label="Reparto: Estatal ${fmtEUR(r.estatalTotal)}, Rehabilita Madrid ${fmtEUR(r.rehabTotal+r.accCapados)}, CAE ${fmtEUR(r.caeTotal)}, vecinos ${fmtEUR(r.restoVecinos)}">
+    <div class="stack" role="img" aria-label="Reparto de la financiación">
       ${pEst>0?`<div style="width:${pEst}%;background:#9B2D2D">${pEst>=9?fmtPct(estPart/base):''}</div>`:''}
       ${pReh>0?`<div style="width:${pReh}%;background:#c75d52">${pReh>=9?fmtPct(rehPartTot/base):''}</div>`:''}
       ${pCae>0?`<div style="width:${pCae}%;background:#b08968">${pCae>=9?fmtPct(caePart/base):''}</div>`:''}
       ${pResto>0?`<div style="width:${pResto}%;background:#cfd4d8;color:#3a3a3a">${pResto>=9?fmtPct(pResto/100):''}</div>`:''}
     </div>
     <div class="legend">
-      <span><i style="background:#9B2D2D"></i>Estatal · ${fmtEUR(r.estatalTotal)}</span>
-      <span><i style="background:#c75d52"></i>Rehabilita Madrid${hayAcc?' (incl. ascensor)':''} · ${fmtEUR(r.rehabTotal+r.accCapados)}</span>
+      <span><i style="background:#9B2D2D"></i>Plan Estatal · energía · ${fmtEUR(r.estatalTotal)}</span>
+      ${rehPartTot>0?`<span><i style="background:#c75d52"></i>${r.incluyeRehab?('Rehabilita Madrid'+(hayAcc?' (incl. ascensor)':'')):'Accesibilidad (estatal)'} · ${fmtEUR(r.rehabTotal+r.accCapados)}</span>`:''}
       <span><i style="background:#b08968"></i>CAE · ${fmtEUR(r.caeTotal)}</span>
       <span><i style="background:#cfd4d8"></i>Vecinos · ${fmtEUR(r.restoVecinos)}</span>
     </div>
@@ -1300,22 +1346,23 @@ function renderInforme(){
         </tbody></table>
       </div>
       <div>
-        <div class="sub">A) Plan Estatal 2026-2030</div>
-        <table><caption class="visually-hidden">Plan Estatal</caption>
+        <div class="sub">A) Plan Estatal · Eficiencia energética (Anexo II / Art. 99.3)</div>
+        <table><caption class="visually-hidden">Plan Estatal energía</caption>
         <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
         ${infoRow(`Subvención (${fmtPct(r.pctEst)} del coste)`,fmtEUR(r.est_porPct),`${fmtEUR(r.baseEnergia)} (base energía) × ${fmtPct(r.pctEst)}`)}
         ${infoRow(`Tope viviendas`,fmtEUR(r.est_topeViv),`${fmtNum(d.numViv)} × ${fmtEUR(d.topeVivEstatal)}/viv`)}
         ${infoRow(`Viviendas (la menor)`,fmtEUR(r.est_viv),`mín(${fmtEUR(r.est_porPct)};${fmtEUR(r.est_topeViv)})`,'subtot')}
         ${(d.numLocales>0 && r.est_locales>0)?infoRow(`Locales (${fmtNum(d.numLocales)})`,fmtEUR(r.est_locales),`${fmtNum(d.supLocales)} m² × ${fmtEUR(d.euroM2LocalEstatal)}/m²`):''}
-        <tr class="total"><td>TOTAL ESTATAL</td><td class="num">${fmtEUR(r.estatalTotal)}</td></tr>
+        <tr class="total"><td>TOTAL ENERGÍA (ESTATAL)</td><td class="num">${fmtEUR(r.estatalTotal)}</td></tr>
         </tbody></table>
+        ${r.incluyeRehab?`
         <div class="sub" style="margin-top:10px">B) Plan Rehabilita Madrid 2026 · ${r.fueraAmbito?'fuera de ámbito':d.zona}</div>
         ${r.fueraAmbito?`<div class="avisobox"><span class="ic" aria-hidden="true">ℹ️</span><div>El edificio está <b>fuera de ámbito ZETU/ZIRE</b>: el Plan Rehabilita Madrid <b>no se aplica</b> (0 €).</div></div>`:`<table><caption class="visually-hidden">Plan Rehabilita</caption>
         <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
         ${infoRow(`Subvención (${fmtPct(r.reh_pct)} del coste)`,fmtEUR(r.reh_porPct),`${fmtEUR(r.baseEnergia)} (base energía) × ${fmtPct(r.reh_pct)}`)}
         ${infoRow(`Tope (${fmtEUR(d.topeVivRehab)}/viv)`,fmtEUR(r.reh_topeViv),`${fmtNum(d.numViv)} × ${fmtEUR(d.topeVivRehab)}`)}
         <tr class="total"><td>TOTAL REHABILITA</td><td class="num">${fmtEUR(r.rehabTotal)}</td></tr>
-        </tbody></table>`}
+        </tbody></table>`}`:''}
         ${accHTML}
       </div>
     </div>
@@ -1324,10 +1371,10 @@ function renderInforme(){
     <table><caption class="visually-hidden">Resumen comparativo</caption>
     <thead><tr><th scope="col">Concepto</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
       <tr><td>Coste total de actuación para la comunidad</td><td class="num">${fmtEUR(r.costeReal)}</td></tr>
-      ${infoRow('Subvenciones energía (Estatal+Rehabilita)',fmtEUR(r.grantsBrutos),`${fmtEUR(r.estatalTotal)} + ${fmtEUR(r.rehabTotal)}`,'subtot')}
+      ${infoRow(r.incluyeRehab?'Subvenciones energía (Estatal+Rehabilita)':'Subvención estatal · energía',fmtEUR(r.grantsBrutos),r.incluyeRehab?`${fmtEUR(r.estatalTotal)} + ${fmtEUR(r.rehabTotal)}`:`Plan Estatal energía (${fmtPct(r.pctEst)})`,'subtot')}
       ${r.recorteGrants>0?infoRow('Ajuste tope energía','− '+fmtEUR(r.recorteGrants),`No superan la base de energía (${fmtEUR(r.baseEnergia)})`):''}
-      ${infoRow('Subvenciones energía aplicables',fmtEUR(r.grantsCapados),`mín(${fmtEUR(r.grantsBrutos)};${fmtEUR(r.baseEnergia)})`)}
-      ${hayAcc?infoRow('Plan Rehabilita · Línea Accesible (ascensor)',fmtEUR(r.accCapados),`Ascensor ${fmtEUR(r.acc_cam)}${r.acc_est>0?' + estatal '+fmtEUR(r.acc_est):''}, capado a ${fmtEUR(r.accCoste)} (coste ascensor)`):''}
+      ${infoRow('Energía aplicable',fmtEUR(r.grantsCapados),`mín(${fmtEUR(r.grantsBrutos)};${fmtEUR(r.baseEnergia)})`)}
+      ${hayAcc?infoRow(r.incluyeRehab?'Plan Rehabilita · Línea Accesible (ascensor)':'Plan Estatal · Accesibilidad',fmtEUR(r.accCapados),r.incluyeRehab?`Ascensor ${fmtEUR(r.acc_cam)}, capado a ${fmtEUR(r.accCoste)} (coste accesibilidad)`:`${fmtEUR(r.acc_est)} (${fmtPct(d.pctAccEstatal/100)} del coste de accesibilidad ${fmtEUR(r.accCoste)})`):''}
       ${infoRow('CAE ('+fmtNum(r.caePct)+'% del coste total)',fmtEUR(r.caeTotal),d.caeInc?(d.cae>0?`Importe manual = ${fmtEUR(r.caeTotal)}`:`${fmtEUR(r.costeReal)} (coste total) × ${fmtNum(r.caePct)}% = ${fmtEUR(r.caeTotal)}`):'No incluido')}
       <tr class="total"><td>AYUDA TOTAL OBTENIBLE</td><td class="num">${fmtEUR(r.obtenibleReal)}</td></tr>
       ${infoRow('% ayuda sobre PEM',fmtPct(r.pctSobrePEM),`${fmtEUR(r.obtenibleReal)} / ${fmtEUR(r.e.pem)}`)}
@@ -1339,8 +1386,8 @@ function renderInforme(){
     <table><caption class="visually-hidden">Topes por vivienda</caption>
     <thead><tr><th scope="col">Programa</th><th scope="col" class="num">Máximo por vivienda</th><th scope="col" class="num">Total (${fmtNum(d.numViv)} viv.)</th></tr></thead><tbody>
       ${infoRow3('Plan Estatal 2026-2030',fmtEUR(r.topeEstatalViv),fmtEUR(r.topeEstatalViv*d.numViv),`${fmtEUR(r.topeEstatalViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeEstatalViv*d.numViv)}`)}
-      ${infoRow3('Plan Rehabilita Madrid',fmtEUR(r.topeRehabViv),fmtEUR(r.topeRehabViv*d.numViv),`${fmtEUR(r.topeRehabViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeRehabViv*d.numViv)}`)}
-      ${hayAcc?infoRow3('Accesibilidad (ascensor)',fmtEUR(r.topeAccViv),fmtEUR(r.topeAccViv*d.numViv),`${fmtEUR(r.topeAccViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeAccViv*d.numViv)}`):''}
+      ${r.incluyeRehab?infoRow3('Plan Rehabilita Madrid',fmtEUR(r.topeRehabViv),fmtEUR(r.topeRehabViv*d.numViv),`${fmtEUR(r.topeRehabViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeRehabViv*d.numViv)}`):''}
+      ${hayAcc?infoRow3(r.incluyeRehab?'Accesibilidad (ascensor · municipal)':'Accesibilidad (estatal · Art. 99.2)',fmtEUR(r.topeAccViv),fmtEUR(r.topeAccViv*d.numViv),`${fmtEUR(r.topeAccViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeAccViv*d.numViv)}`):''}
       <tr class="total"><td>SUBVENCIÓN MÁXIMA POR VIVIENDA</td><td class="num">${fmtEUR(r.topeEstatalViv+r.topeRehabViv+(hayAcc?r.topeAccViv:0))}</td><td class="num">${fmtEUR((r.topeEstatalViv+r.topeRehabViv+(hayAcc?r.topeAccViv:0))*d.numViv)}</td></tr>
     </tbody></table>
 
@@ -1430,6 +1477,21 @@ function toggleVulnViv(){$('#vulnVivWrap').style.display=$('#vuln').value==='par
 function toggleLocales(){ const si=$('#tieneLocales').value==='si'; $$('.loc-field').forEach(el=>el.style.display=si?'flex':'none'); if(!si){ if($('#numLocales'))$('#numLocales').value='0'; if($('#supLocales'))$('#supLocales').value='0'; } }
 // Resalta la tarjeta de opción que coincide con el valor del select oculto
 function syncOptCards(){ $$('.opt-card').forEach(b=>{ const sel=$('#'+b.dataset.sel); const on=!!sel && sel.value===b.dataset.value; b.classList.toggle('on',on); b.setAttribute('aria-checked',on?'true':'false'); }); }
+
+// ===== Plantilla de subvenciones (modo): 'completo' = Estatal+Rehabilita ; 'estatal' = solo Estatal =====
+let MODO='completo';
+function setModo(m,rerender){
+  MODO=(m==='estatal')?'estatal':'completo';
+  try{localStorage.setItem('pge_modo',MODO);}catch(e){}
+  $$('.modo-btn').forEach(b=>{const on=b.dataset.modo===MODO;b.classList.toggle('on',on);b.setAttribute('aria-checked',on?'true':'false');});
+  const rehUI=(MODO==='completo');
+  ['boxCalifReh','boxRehabAdv'].forEach(id=>{const el=$('#'+id);if(el)el.style.display=rehUI?'':'none';});
+  // Campos de accesibilidad: municipales solo en 'completo'; estatales solo en 'estatal'
+  ['pctAccCam','topeAccCam'].forEach(id=>{const el=$('#'+id);if(el&&el.closest('.field'))el.closest('.field').style.display=rehUI?'':'none';});
+  ['pctAccEstatal','nivelAcc'].forEach(id=>{const el=$('#'+id);if(el&&el.closest('.field'))el.closest('.field').style.display=rehUI?'none':'';});
+  const h=$('#modoHint'); if(h)h.textContent=rehUI?'Incluye Plan Estatal + Plan Rehabilita Madrid (según zona ZETU/ZIRE) y la accesibilidad municipal (Línea Accesible al 75 %/40 %).':'Solo Plan Estatal: la accesibilidad se calcula al 70–80 % estatal (Art. 99.2); no se cuenta el Plan Rehabilita Madrid.';
+  if(rerender!==false){ actualizarSumaCap(); if(document.body.classList.contains('modo-informe')) renderInforme(); }
+}
 function sincCaeChk(){$('#caeChkLbl').classList.toggle('on',$('#caeInc').checked);}
 function verInforme(){
   if(!validar()){flash('Revisa los campos marcados.');window.scrollTo({top:0,behavior:'smooth'});return;}
@@ -1446,6 +1508,9 @@ function init(){
   let prev=null;try{prev=JSON.parse(localStorage.getItem(LS_LAST));}catch(e){}
   if(prev){aplicar(prev);}else{cargarEjemplo();}
   pintarLista();toggleVulnViv();toggleLocales();sincCaeChk();actualizarSumaCap();syncOptCards();
+  try{MODO=localStorage.getItem('pge_modo')||'completo';}catch(e){MODO='completo';}
+  setModo(MODO,false);
+  $$('.modo-btn').forEach(b=>b.addEventListener('click',()=>setModo(b.dataset.modo)));
 
   $('#btnVerInforme').addEventListener('click',verInforme);
   $('#btnVolver').addEventListener('click',volverEdicion);
