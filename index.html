@@ -343,9 +343,11 @@
             <input id="direccion" type="text" placeholder="Calle Andrés Torrejón 26" aria-required="true" aria-describedby="err-direccion">
             <span class="errmsg" id="err-direccion" data-for="direccion" role="alert">Indica la dirección del edificio.</span>
             <div class="geo-row" style="margin-top:8px">
-              <button type="button" class="btn-primary btn-sm" id="btnCatastro">📋 Rellenar datos del Catastro</button>
+              <button type="button" class="btn-primary btn-sm" id="btnBuscarTodo">🔎 Buscar viviendas y zona</button>
+              <button type="button" class="btn-outline btn-sm" id="btnCatastro">📋 Solo Catastro</button>
               <span class="chip-zona" id="catastroChip">Sin consultar</span>
             </div>
+            <span class="hint" style="display:block;margin-top:4px">Escribe la <b>calle y el número</b> y pulsa <b>Buscar</b>: rellena solo viviendas, año, superficie, locales, distrito y zona (ZETU/ZIRE). Ideal para presupuestos que vienen sin la dirección del cliente.</span>
           </div>
           <div class="field"><label for="municipio">Municipio</label><input id="municipio" type="text" value="Madrid" placeholder="Madrid"><span class="hint">Lo usa el Catastro (cámbialo si no es Madrid capital).</span></div>
           <div class="field"><label for="distrito">Distrito</label><input id="distrito" type="text" list="distritosList" placeholder="Escribe o elige…" autocomplete="off"><datalist id="distritosList"></datalist><span class="hint">Opcional (Madrid capital). Texto libre.</span></div>
@@ -735,6 +737,13 @@ function mostrarMapa(lat,lon,texto){
   }catch(e){ el.style.display='none'; }
 }
 
+// Acción combinada: con solo la calle y el número, rellena datos del edificio (Catastro) + zona (geoportal)
+async function buscarTodo(){
+  const dir=$('#direccion').value.trim();
+  if(!dir){ const ch=$('#catastroChip'); if(ch){ch.innerHTML='Escribe primero la calle y el número.';ch.className='chip-zona warn';} $('#direccion').focus(); return; }
+  await datosCatastro();   // viviendas, año, superficie, locales, distrito
+  await detectarZona();    // zona ZETU/ZIRE + mapa
+}
 async function detectarZona(){
   const dir=$('#direccion').value.trim();
   const chip=$('#zonaChip');
@@ -878,24 +887,36 @@ function parsePresupuesto(lines){
   let ei=-1; for(let i=(bi<0?0:bi)+1;i<lines.length;i++){ if(/EJECUCI[ÓO]N\s+MATERIAL/i.test(lines[i])){ ei=i; break; } }
   let fe=-1; for(let i=(ei<0?(bi<0?0:bi):ei)+1;i<lines.length;i++){ if(/COSTE\s+TOTAL\s+DE\s+ACTUACI[ÓO]N\s+PARA\s+LA\s+COMUNIDAD|IMPORTE\s+TOTAL\s+A\s+FINANCIAR/i.test(lines[i])){ fe=i; break; } }
 
-  // --- Capítulos (solo dentro del resumen). Maneja nombre partido en varias líneas y nº de capítulo pegado. ---
-  const capBlock=(bi>=0&&ei>bi)?lines.slice(bi+1,ei):lines;
+  // --- Capítulos: dos formatos posibles ---
   const skipRow=/^(TOTAL|SUBTOTAL|RESUMEN|CAP[IÍ]TULO\b|CAP\.|PRESUPUESTO|COSTE|HONORARIOS?|TASAS?|ICIO|I\.?\s*V\.?\s*A|EJECUCI[ÓO]N|MEJORA\s+[A-ZÁÉÍÓÚ]\s*$|NOTAS?\b)/i;
-  let pending='';
-  capBlock.forEach(raw=>{
-    const l=String(raw).replace(/\s+/g,' ').trim(); if(!l) return;
-    const am=l.match(/(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?$/);
-    if(am){
-      const imp=numES(am[1]);
-      const name=l.slice(0,am.index).replace(/^(\d{1,2})(?=\s|$)/,'').replace(/\s+/g,' ').trim();
-      const full2=((pending?pending+' ':'')+name).replace(/\s+/g,' ').trim();
-      pending='';
-      if(full2.length>=3 && !skipRow.test(full2) && imp>0) out.capitulos.push({nombre:full2,importe:imp});
-    } else if(/[A-Za-zÁÉÍÓÚÑ]/.test(l) && !skipRow.test(l)){
-      const nm=l.replace(/^(\d{1,2})(?=\s|$)/,'').replace(/\s+/g,' ').trim();
-      if(nm.length>=2) pending=(pending?pending+' ':'')+nm;
-    }
-  });
+  // FORMATO B "Presupuesto y Mediciones": líneas "TOTAL CAPÍTULO NN NOMBRE ....... importe"
+  const totalCapRe=/^TOTAL\s+CAP[ÍI]TULO\s+\d{1,3}\s+(.+?)[\s.]+(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?$/i;
+  const capTotLines=lines.filter(l=>totalCapRe.test(l));
+  if(capTotLines.length){
+    out.formato='mediciones';
+    capTotLines.forEach(l=>{ const m=l.match(totalCapRe); if(!m) return; const nombre=m[1].replace(/[.\s]+$/,'').replace(/\s+/g,' ').trim(); const imp=numES(m[2]); if(nombre.length>=2 && imp>0) out.capitulos.push({nombre,importe:imp}); });
+    // PEM = línea final "TOTAL ........ importe" (sin "CAPÍTULO")
+    const totFin=lines.filter(l=>/^TOTAL[\s.]+\d{1,3}(?:\.\d{3})*,\d{2}\s*€?$/i.test(l));
+    if(totFin.length){ const mm=totFin[totFin.length-1].match(/(\d{1,3}(?:\.\d{3})*,\d{2})/); if(mm) out.pem=numES(mm[1]); }
+  } else {
+    // FORMATO A "Resumen presupuestos": capítulos dentro del bloque RESUMEN→TOTAL EJECUCIÓN MATERIAL
+    const capBlock=(bi>=0&&ei>bi)?lines.slice(bi+1,ei):lines;
+    let pending='';
+    capBlock.forEach(raw=>{
+      const l=String(raw).replace(/\s+/g,' ').trim(); if(!l) return;
+      const am=l.match(/(\d{1,3}(?:\.\d{3})*,\d{2})\s*€?$/);
+      if(am){
+        const imp=numES(am[1]);
+        const name=l.slice(0,am.index).replace(/^(\d{1,2})(?=\s|$)/,'').replace(/\s+/g,' ').trim();
+        const full2=((pending?pending+' ':'')+name).replace(/\s+/g,' ').trim();
+        pending='';
+        if(full2.length>=3 && !skipRow.test(full2) && imp>0) out.capitulos.push({nombre:full2,importe:imp});
+      } else if(/[A-Za-zÁÉÍÓÚÑ]/.test(l) && !skipRow.test(l)){
+        const nm=l.replace(/^(\d{1,2})(?=\s|$)/,'').replace(/\s+/g,' ').trim();
+        if(nm.length>=2) pending=(pending?pending+' ':'')+nm;
+      }
+    });
+  }
   const seen=new Set(); out.capitulos=out.capitulos.filter(c=>{const k=c.nombre+'|'+c.importe; if(seen.has(k))return false; seen.add(k); return true;});
 
   // --- Económico: SOLO dentro del bloque resumen (evita los "I.V.A." de las páginas de detalle) ---
@@ -903,7 +924,7 @@ function parsePresupuesto(lines){
   const text=econLines.join('\n');
   const grab=(re,t)=>{const m=(t||text).match(re);return m?numES(m[1]):null;};
   let m;
-  out.pem=grab(/EJECUCI[ÓO]N\s+MATERIAL\D*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  if(out.pem==null) out.pem=grab(/EJECUCI[ÓO]N\s+MATERIAL\D*?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
   // IVA obra = el que acompaña al PEM/CONTRATA ; IVA honorarios = el que sigue a "HONORARIOS"
   const ivO=text.match(/EJECUCI[ÓO]N\s+MATERIAL[\s\S]{0,90}?(\d{1,2})\s*%/i)||text.match(/I\.?\s*V\.?\s*A\.?[\s.]*?(\d{1,2})\s*%/i);
   if(ivO) out.ivaObra=+ivO[1];
@@ -922,10 +943,16 @@ function parsePresupuesto(lines){
   if(m=text.match(/Bonificad[oa]\s+al\s+(\d{1,3})\s*%/i)) out.tasasBonif=numES(m[1]);
 
   // --- Dirección / viviendas (en todo el documento) ---
-  if(m=full.match(/CLIENTE\s*:?\s*(.+?)\s*(?:PRESUPUESTO|FECHA|\n|$)/i)){
-    out.direccion=m[1].replace(/\s+/g,' ').trim().replace(/^CL\b\.?/i,'Calle').replace(/\s*-\s*/g,', ');
-  } else if(m=full.match(/\b(?:C\/|CALLE|AVDA\.?|AVENIDA|PLAZA|PASEO|Pº|CTRA\.?|CAMINO)\s+[A-Za-zÁÉÍÓÚÑáéíóúñ0-9 .,ºª\/-]{3,55}?\s*\d{1,4}\b/i)){
-    out.direccion=m[0].replace(/\s+/g,' ').trim();
+  // CLIENTE: en la MISMA línea y que parezca dirección (lleva nº o palabra de vía); descarta "FECHA:"/"PRESUPUESTO:" y vacíos
+  const esEmpresa=(s)=>/OVIEDO|LEGAN[ÉE]S|PROYECTON/i.test(s);
+  if(m=full.match(/CLIENTE\s*:?[ \t]*([^\n]+?)\s*(?:PRESUPUESTO\s*:|FECHA\s*:|$)/im)){
+    const cand=m[1].replace(/\s+/g,' ').trim();
+    if(cand && !/^(FECHA|PRESUPUESTO)\b/i.test(cand) && /\d|C\/|CALLE|AVDA|AVENIDA|PLAZA|PASEO|\bCL\b|CTRA|CAMINO/i.test(cand) && !esEmpresa(cand)){
+      out.direccion=cand.replace(/^CL\b\.?/i,'Calle').replace(/\s*-\s*/g,', ');
+    }
+  }
+  if(!out.direccion){ const ms=full.match(/\b(?:C\/|CALLE|AVDA\.?|AVENIDA|PLAZA|PASEO|Pº|CTRA\.?|CAMINO)\s+[A-Za-zÁÉÍÓÚÑáéíóúñ0-9 .,ºª\/-]{3,55}?\s*\d{1,4}\b/i);
+    if(ms && !esEmpresa(ms[0])) out.direccion=ms[0].replace(/\s+/g,' ').trim();
   }
   // Nº viviendas: prioriza "CANTIDAD DE VECINOS N" (dato fiable del PDF); evita cazar años (2026-2030) y otros nº de 4 cifras
   let nv=null;
@@ -1019,8 +1046,14 @@ function aplicarImport(d){
   if(typeof setRehabFromZona==='function') setRehabFromZona();
   syncOptCards();
   actualizarSumaCap(); recalcEco(); guardarBorrador();
-  flash('Presupuesto importado. Revisa los datos antes de generar el informe.');
   window.scrollTo({top:0,behavior:'smooth'});
+  // Si el PDF trae dirección, busca viviendas y zona automáticamente; si no, pide escribirla.
+  if(d.direccion){
+    flash('Presupuesto importado. Buscando viviendas y zona desde la dirección del PDF…');
+    buscarTodo();
+  } else {
+    flash('Presupuesto importado. Escribe la dirección y pulsa «🔎 Buscar viviendas y zona».');
+  }
 }
 
 /* ===== Capítulos ===== */
@@ -1521,6 +1554,7 @@ function init(){
   $('#presetRehab').addEventListener('change',setRehabFromZona);
   $('#btnDetectarZona').addEventListener('click',detectarZona);
   $('#btnCatastro').addEventListener('click',datosCatastro);
+  $('#btnBuscarTodo').addEventListener('click',buscarTodo);
   $('#pdfFile').addEventListener('change',e=>{ if(e.target.files[0]) importarPDF(e.target.files[0]); });
   $('#btnImportPDF').addEventListener('click',()=>{ const f=$('#pdfFile').files[0]; if(f){ importarPDF(f); } else { const s=$('#impStatus'); s.classList.add('show'); s.textContent='Elige primero un archivo PDF.'; } });
   $('#vuln').addEventListener('change',toggleVulnViv);
