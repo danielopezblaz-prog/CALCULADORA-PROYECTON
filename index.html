@@ -1511,14 +1511,6 @@ function renderInforme(){
       ${infoRow('Resto por vivienda',fmtEUR(r.restoPorViv),`${fmtEUR(r.restoVecinos)} / ${fmtNum(d.numViv)} viviendas`)}
     </tbody></table>
 
-    <div class="sub">Por vivienda: lo que paga cada vecino</div>
-    <table><caption class="visually-hidden">Coste por vivienda</caption>
-    <thead><tr><th scope="col">Concepto (por vivienda)</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
-      <tr><td>Subvención media obtenida por vivienda</td><td class="num">${fmtEUR(r.subvPorViv)}</td></tr>
-      <tr class="total"><td>LO QUE PAGA CADA VIVIENDA</td><td class="num">${fmtEUR(r.restoPorViv)}</td></tr>
-    </tbody></table>
-    <div class="avisobox acc"><span class="ic" aria-hidden="true">🧾</span><div><b>Nota informativa — desgravación IRPF:</b> además, cada vecino podrá deducir en su declaración de la renta el <b>${fmtPct(r.irpfPct)}</b> de lo que pague (hasta <b>${fmtEUR(r.irpfMaxAnual)}/año</b> y un máximo de <b>${fmtEUR(r.irpfMaxTotal)} en 3 años</b>). Orientativamente serían ≈ <b>${fmtEUR(r.irpfDeduccion)}</b> por vivienda. <i>No se descuenta en el total: es un ahorro fiscal posterior.</i></div></div>
-
     ${(d.finInc && r.finBaseImporte>0)?`
     <div class="sub">🏦 Financiación</div>
     <div class="fin-wrap">
