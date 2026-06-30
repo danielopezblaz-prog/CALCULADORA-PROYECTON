@@ -502,6 +502,11 @@
               <span class="hint" id="hint-acc">Ascensor, rampas, salvaescaleras… Si es 0, no se muestra el bloque.</span>
             </div>
             <div class="field">
+              <label for="accMayor">¿Reside alguien &gt;65 años o con discapacidad ≥33 %?</label>
+              <select id="accMayor"><option value="no">No</option><option value="si">Sí</option></select>
+              <span class="hint">Si <b>sí</b>, la ayuda de accesibilidad del Plan Estatal sube del <b>70 % al 80 %</b> para todo el edificio.</span>
+            </div>
+            <div class="field">
               <label for="nivelAcc">Nivel ayuda estatal (tope €/viv)</label>
               <select id="nivelAcc">
                 <option value="general">General · 13.000 €/viv</option>
@@ -1497,15 +1502,6 @@ function renderInforme(){
       ${infoRow('Resto por vivienda',fmtEUR(r.restoPorViv),`${fmtEUR(r.restoVecinos)} / ${fmtNum(d.numViv)} viviendas`)}
     </tbody></table>
 
-    <div class="sub">Topes máximos de subvención por vivienda</div>
-    <table><caption class="visually-hidden">Topes por vivienda</caption>
-    <thead><tr><th scope="col">Programa</th><th scope="col" class="num">Máximo por vivienda</th><th scope="col" class="num">Total (${fmtNum(d.numViv)} viv.)</th></tr></thead><tbody>
-      ${infoRow3('Plan Estatal 2026-2030',fmtEUR(r.topeEstatalViv),fmtEUR(r.topeEstatalViv*d.numViv),`${fmtEUR(r.topeEstatalViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeEstatalViv*d.numViv)}`)}
-      ${r.incluyeRehab?infoRow3('Plan Rehabilita Madrid',fmtEUR(r.topeRehabViv),fmtEUR(r.topeRehabViv*d.numViv),`${fmtEUR(r.topeRehabViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeRehabViv*d.numViv)}`):''}
-      ${hayAcc?infoRow3(r.incluyeRehab?'Accesibilidad (ascensor · municipal)':'Accesibilidad (estatal · Art. 99.2)',fmtEUR(r.topeAccViv),fmtEUR(r.topeAccViv*d.numViv),`${fmtEUR(r.topeAccViv)}/viv × ${fmtNum(d.numViv)} = ${fmtEUR(r.topeAccViv*d.numViv)}`):''}
-      <tr class="total"><td>SUBVENCIÓN MÁXIMA POR VIVIENDA</td><td class="num">${fmtEUR(r.topeEstatalViv+r.topeRehabViv+(hayAcc?r.topeAccViv:0))}</td><td class="num">${fmtEUR((r.topeEstatalViv+r.topeRehabViv+(hayAcc?r.topeAccViv:0))*d.numViv)}</td></tr>
-    </tbody></table>
-
     <div class="sub">Por vivienda: lo que paga el vecino y desgravación IRPF</div>
     <table><caption class="visually-hidden">Coste por vivienda</caption>
     <thead><tr><th scope="col">Concepto (por vivienda)</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
@@ -1561,7 +1557,7 @@ function snapshot(){return{
   actuaciones:[...$$('#actChecks input:checked')].map(i=>i.value),
   capitulos:leerCapitulos(),ivaObra:$('#ivaObra').value,honTec:$('#honTec').value,honAgente:$('#honAgente').value,
   ivaHon:$('#ivaHon').value,tasasPct:$('#tasasPct').value,costeAcc:$('#costeAcc').value,nivelAcc:$('#nivelAcc').value,
-  pctAccEstatal:$('#pctAccEstatal').value,pctAccCam:$('#pctAccCam').value,topeAccCam:$('#topeAccCam').value,
+  pctAccEstatal:$('#pctAccEstatal').value,pctAccCam:$('#pctAccCam').value,topeAccCam:$('#topeAccCam').value,accMayor:($('#accMayor')?$('#accMayor').value:'no'),
   vuln:$('#vuln').value,vulnViv:$('#vulnViv').value,cae:$('#cae').value,caePct:$('#caePct').value,caeInc:$('#caeInc').checked,
   finInc:($('#finInc')?$('#finInc').checked:true),finBase:($('#finBase')?$('#finBase').value:'resto'),finEntrada:($('#finEntrada')?$('#finEntrada').value:'0'),finPlazo:($('#finPlazo')?$('#finPlazo').value:'120'),finInteres:($('#finInteres')?$('#finInteres').value:'5')};}
 function aplicar(s){
@@ -1574,7 +1570,7 @@ function aplicar(s){
   setD('pctEstatal',s.pctEstatal,40);setD('topeVivEstatal',s.topeVivEstatal,7500);setD('euroM2Local',s.euroM2Local,90);
   setD('pctRehab',s.pctRehab,50);setD('topeVivRehab',s.topeVivRehab,8000);
   setD('ivaObra',s.ivaObra,10);set('honTec',s.honTec);set('honAgente',s.honAgente);setD('ivaHon',s.ivaHon,21);setD('tasasPct',s.tasasPct,4);
-  set('costeAcc',s.costeAcc);setD('nivelAcc',s.nivelAcc,'general');setD('pctAccEstatal',s.pctAccEstatal,70);setD('pctAccCam',s.pctAccCam,75);setD('topeAccCam',s.topeAccCam,10000);
+  set('costeAcc',s.costeAcc);setD('nivelAcc',s.nivelAcc,'general');setD('pctAccEstatal',s.pctAccEstatal,70);setD('pctAccCam',s.pctAccCam,75);setD('topeAccCam',s.topeAccCam,10000);setD('accMayor',s.accMayor,'no');
   set('vuln',s.vuln);set('vulnViv',s.vulnViv);set('cae',s.cae);setD('caePct',s.caePct,6);
   $('#caeInc').checked=s.caeInc!==false;sincCaeChk();
   setD('finBase',s.finBase,'resto');setD('finEntrada',s.finEntrada,'0');setD('finPlazo',s.finPlazo,'120');setD('finInteres',s.finInteres,'5');
@@ -1632,6 +1628,12 @@ function setModo(m,rerender){
   if(rerender!==false){ actualizarSumaCap(); if(document.body.classList.contains('modo-informe')) renderInforme(); }
 }
 function sincCaeChk(){$('#caeChkLbl').classList.toggle('on',$('#caeInc').checked);}
+// >65 años / discapacidad ≥33% → ayuda de accesibilidad estatal al 80% (si no, 70%)
+function setAccMayor(){
+  const si=$('#accMayor')&&$('#accMayor').value==='si';
+  if($('#pctAccEstatal')) $('#pctAccEstatal').value=si?80:70;
+  actualizarSumaCap(); if(document.body.classList.contains('modo-informe')) renderInforme(); guardarBorrador();
+}
 function verInforme(){
   if(!validar()){flash('Revisa los campos marcados.');window.scrollTo({top:0,behavior:'smooth'});return;}
   renderInforme();
@@ -1667,6 +1669,7 @@ function init(){
   $('#tieneLocales').addEventListener('change',()=>{toggleLocales();recalcEco();});
   $('#caeInc').addEventListener('change',sincCaeChk);
   if($('#finInc'))$('#finInc').addEventListener('change',()=>{if($('#finChkLbl'))$('#finChkLbl').classList.toggle('on',$('#finInc').checked);});
+  if($('#accMayor'))$('#accMayor').addEventListener('change',setAccMayor);
   $('#btnGuardar').addEventListener('click',guardarPresupuesto);
   $('#btnCargar').addEventListener('click',cargarPresupuesto);
   $('#btnBorrar').addEventListener('click',borrarPresupuesto);
