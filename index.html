@@ -1587,11 +1587,11 @@ function cargarEjemplo(){
   set('pctEstatal','40');set('topeVivEstatal','7500');set('euroM2Local','90');
   set('pctRehab','50');set('topeVivRehab','8000');
   set('ivaObra','10');set('honTec','15000');set('honAgente','0');set('ivaHon','21');set('tasasPct','4');
-  set('costeAcc','0');set('nivelAcc','general');set('pctAccEstatal','70');set('pctAccCam','75');set('topeAccCam','10000');if($('#accMayor'))$('#accMayor').value='no';
+  set('costeAcc','99000');set('nivelAcc','general');set('pctAccEstatal','70');set('pctAccCam','75');set('topeAccCam','10000');if($('#accMayor'))$('#accMayor').value='no';
   set('vuln','no');set('vulnViv','');set('cae','');set('caePct','6');$('#caeInc').checked=true;
   $$('#actChecks input').forEach(i=>{i.checked=(i.value==='fachada');i.closest('.chk').classList.toggle('on',i.checked);});
   $('#capitulos').innerHTML='';
-  addCapitulo('Medios auxiliares','39556.28');addCapitulo('Actuaciones previas y desmont. elementos de fachada','21255.55');
+  addCapitulo('Instalación de ascensor','90000');addCapitulo('Medios auxiliares','39556.28');addCapitulo('Actuaciones previas y desmont. elementos de fachada','21255.55');
   addCapitulo('Rehabilitación de fachadas','177927.55');addCapitulo('Seguridad y salud','3800');addCapitulo('Gestión de residuos','4800');
   sincCaeChk();toggleLocales();syncOptCards();
 }
