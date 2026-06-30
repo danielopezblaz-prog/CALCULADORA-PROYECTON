@@ -1146,7 +1146,7 @@ function recalcEco(){
   const box=$('#ecoResumen'); if(!box) return;
   const d=leerDatos(); const e=calcEconomia(d);
   const accCoste=Math.min(d.costeAccesibilidad||0, e.costeSubvencionable);
-  const accRow = accCoste>0 ? `<tr><td style="font-style:italic;color:var(--gris)">— de los cuales, accesibilidad/ascensor (75 %)</td><td class="num">${fmtEUR(accCoste)}</td></tr>` : '';
+  const accRow = accCoste>0 ? `<tr><td style="font-style:italic;color:var(--gris)">— de los cuales, coste de accesibilidad/ascensor</td><td class="num">${fmtEUR(accCoste)}</td></tr>` : '';
   box.innerHTML=`<table><caption class="visually-hidden">Resumen económico</caption><tbody>
     <tr><td>Total Ejecución Material (PEM)</td><td class="num">${fmtEUR(e.pem)}</td></tr>
     <tr><td>IVA de la obra (${fmtNum(d.ivaObra)} %)</td><td class="num">${fmtEUR(e.ivaObraEur)}</td></tr>
@@ -1460,7 +1460,7 @@ function renderInforme(){
         ${infoRow(`Honorarios téc. + IVA`,fmtEUR(r.e.honTecConIva),`${fmtEUR(r.e.honTec)} + IVA ${fmtNum(d.ivaHon)}%`)}
         ${r.e.honAgente>0?infoRow('Agente rehabilitador + IVA',fmtEUR(r.e.honAgenteConIva),`${fmtEUR(r.e.honAgente)} + IVA`):''}
         <tr class="total"><td>COSTE SUBVENCIONABLE</td><td class="num">${fmtEUR(r.e.costeSubvencionable)}</td></tr>
-        ${hayAcc?`<tr><td style="font-style:italic;color:var(--gris)">— de los cuales, accesibilidad/ascensor (75 %)</td><td class="num">${fmtEUR(r.accCoste)}</td></tr><tr><td style="font-style:italic;color:var(--gris)">— resto, energía</td><td class="num">${fmtEUR(r.baseEnergia)}</td></tr>`:''}
+        ${hayAcc?`<tr><td style="font-style:italic;color:var(--gris)">— de los cuales, coste de accesibilidad/ascensor</td><td class="num">${fmtEUR(r.accCoste)}</td></tr><tr><td style="font-style:italic;color:var(--gris)">— resto, energía</td><td class="num">${fmtEUR(r.baseEnergia)}</td></tr>`:''}
         ${infoRow(`Tasas/ICIO (${fmtNum(d.tasasPct)} % PEM)`,fmtEUR(r.e.tasasEur),`${fmtEUR(r.e.pem)} × ${fmtNum(d.tasasPct)}%`)}
         <tr class="total"><td>COSTE TOTAL COMUNIDAD</td><td class="num">${fmtEUR(r.costeReal)}</td></tr>
         </tbody></table>
