@@ -1105,7 +1105,7 @@ function aplicarImport(d){
   if(accPEM>0){
     const iva=(d.ivaObra!=null?d.ivaObra:10)/100;
     set('costeAcc',(accPEM*(1+iva)).toFixed(2));   // ascensor PEM + su IVA
-    set('nivelAcc','universal'); set('pctAccEstatal','70');
+    set('nivelAcc','general'); set('pctAccEstatal','70'); set('accMayor','no');
     const z=$('#zona').value; const cam=(CUANTIAS.accesibilidad.cam.zonas||{})[z];
     set('pctAccCam', cam? (cam.pct*100) : 75); set('topeAccCam', cam? cam.topeViv : 10000);
   } else { set('costeAcc','0'); }
@@ -1587,7 +1587,7 @@ function cargarEjemplo(){
   set('pctEstatal','40');set('topeVivEstatal','7500');set('euroM2Local','90');
   set('pctRehab','50');set('topeVivRehab','8000');
   set('ivaObra','10');set('honTec','15000');set('honAgente','0');set('ivaHon','21');set('tasasPct','4');
-  set('costeAcc','0');set('nivelAcc','universal');set('pctAccEstatal','70');set('pctAccCam','75');set('topeAccCam','10000');
+  set('costeAcc','0');set('nivelAcc','general');set('pctAccEstatal','70');set('pctAccCam','75');set('topeAccCam','10000');if($('#accMayor'))$('#accMayor').value='no';
   set('vuln','no');set('vulnViv','');set('cae','');set('caePct','6');$('#caeInc').checked=true;
   $$('#actChecks input').forEach(i=>{i.checked=(i.value==='fachada');i.closest('.chk').classList.toggle('on',i.checked);});
   $('#capitulos').innerHTML='';
@@ -1632,6 +1632,7 @@ function sincCaeChk(){$('#caeChkLbl').classList.toggle('on',$('#caeInc').checked
 function setAccMayor(){
   const si=$('#accMayor')&&$('#accMayor').value==='si';
   if($('#pctAccEstatal')) $('#pctAccEstatal').value=si?80:70;
+  if($('#nivelAcc')) $('#nivelAcc').value=si?'mayor':'general';
   actualizarSumaCap(); if(document.body.classList.contains('modo-informe')) renderInforme(); guardarBorrador();
 }
 function verInforme(){
