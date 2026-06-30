@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Calculadora de subvenciones a la rehabilitación de edificios — Proyecton Global Energy SL.">
+<meta name="description" content="Calculadora de subvenciones a la rehabilitación de edificios — Revestimientos Proyecton SLU.">
 <title>Calculadora de Subvenciones · Proyecton</title>
 <!--
   ============================================================================
@@ -149,6 +149,21 @@
   .kpi.resto{background:linear-gradient(135deg,var(--granate-med),var(--granate));}
   .kpi.via{background:linear-gradient(135deg,#6a6f73,#4a4f53);}
   @media(max-width:620px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  /* financiación visual */
+  .fin-wrap{margin-top:6px;border:1px solid var(--linea);border-radius:14px;overflow:hidden;}
+  .fin-head{background:linear-gradient(135deg,var(--granate),var(--granate-osc));color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+  .fin-head .t{font-weight:800;font-size:15px;}
+  .fin-head .meta{font-size:12px;opacity:.95;font-weight:600;}
+  .fin-hero{display:flex;align-items:baseline;gap:10px;background:var(--granate-cl);padding:13px 16px;border-bottom:1px solid var(--linea);flex-wrap:wrap;}
+  .fin-hero .big{font-size:30px;font-weight:800;color:var(--granate);line-height:1;}
+  .fin-hero .cap{font-size:13px;color:var(--carbon);font-weight:600;}
+  .fin-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px;}
+  .fin-card{background:#fff;border:1px solid var(--linea);border-radius:11px;padding:11px 12px;text-align:center;}
+  .fin-card .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--gris);font-weight:700;}
+  .fin-card .v{font-size:18px;font-weight:800;color:var(--carbon);margin-top:4px;line-height:1.05;}
+  .fin-card .s{font-size:10px;color:var(--gris);margin-top:3px;}
+  .fin-foot{font-size:11px;color:var(--gris);padding:0 16px 12px;}
+  @media(max-width:620px){.fin-cards{grid-template-columns:repeat(2,1fr);}}
 
   .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:8px;align-items:stretch;}
   @media(max-width:620px){.hero{grid-template-columns:1fr;}}
@@ -297,7 +312,7 @@
     <div class="logo-fallback" id="logoFb" aria-hidden="true">PGE</div>
     <div class="brand">
       <h1>Calculadora de Subvenciones a la Rehabilitación</h1>
-      <p>Proyecton Global Energy</p>
+      <p>Revestimientos Proyecton SLU</p>
     </div>
     <div class="topbtns no-print">
       <button class="btn-ghost btn-sm" id="btnFormulas" type="button" aria-pressed="false">ƒ Mostrar fórmulas</button>
@@ -537,9 +552,30 @@
       </div>
     </section>
 
-    <!-- 6 · Persistencia -->
+    <!-- 6 · Financiación -->
+    <section class="card" aria-labelledby="h6f">
+      <h2 class="head" id="h6f"><span class="num" aria-hidden="true">6</span> 🏦 Financiación (opcional)</h2>
+      <div class="body">
+        <label class="chk on" id="finChkLbl"><input id="finInc" type="checkbox" checked> Incluir apartado de financiación en el informe</label>
+        <div class="grid" style="margin-top:10px">
+          <div class="field">
+            <label for="finBase">¿Qué se financia?</label>
+            <select id="finBase">
+              <option value="resto">Resto a pagar tras subvenciones</option>
+              <option value="total">Coste total (antes de subvenciones)</option>
+            </select>
+            <span class="hint">Lo habitual: el resto que pagan los vecinos.</span>
+          </div>
+          <div class="field"><label for="finEntrada">Entrada inicial de la comunidad (€)</label><input id="finEntrada" type="number" min="0" step="0.01" value="0"></div>
+          <div class="field"><label for="finPlazo">Plazo (meses)</label><input id="finPlazo" type="number" min="1" max="360" step="1" value="120"><span class="hint">120 meses = 10 años.</span></div>
+          <div class="field"><label for="finInteres">Tipo de interés anual (%)</label><input id="finInteres" type="number" min="0" max="30" step="0.01" value="5"><span class="hint">Pon 0 si es sin intereses.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 · Persistencia -->
     <section class="card no-print" aria-labelledby="h6e">
-      <h2 class="head" id="h6e"><span class="num" aria-hidden="true">6</span> 💾 Guardar / cargar presupuestos</h2>
+      <h2 class="head" id="h6e"><span class="num" aria-hidden="true">7</span> 💾 Guardar / cargar presupuestos</h2>
       <div class="body">
         <div class="sub">Se guardan en este navegador (localStorage)</div>
         <div class="saverow">
@@ -678,7 +714,7 @@ const REQUISITOS = [
 /* ===== Utilidades ===== */
 const $  = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
-function fmtEUR(n){ return (isFinite(n)?n:0).toLocaleString('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtEUR(n){ n=isFinite(n)?n:0; const neg=n<0; const s=Math.abs(n).toFixed(2).split('.'); s[0]=s[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.'); return (neg?'-':'')+s[0]+','+s[1]+' €'; }
 function fmtPct(n){ return (isFinite(n)?n*100:0).toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:1})+' %'; }
 function fmtNum(n){ return (isFinite(n)?n:0).toLocaleString('es-ES',{maximumFractionDigits:2}); }
 function num(v){ const n=parseFloat(String(v).replace(',','.')); return isFinite(n)?n:0; }
@@ -711,6 +747,19 @@ const GEO_BASE="https://sigma.madrid.es/hosted/rest/services";
 const GEOCODER=GEO_BASE+"/GEOLOCATOR/GEOLOCALIZADOR_MADRID_VIAL_NDP/GeocodeServer/findAddressCandidates";
 const REHAB_MS=GEO_BASE+"/VIVIENDA/PLAN_REHABILITA_MADRID/MapServer";
 let mapInst=null, mapMarker=null;
+// Normaliza la dirección para el geocodificador (expande abreviaturas y quita comas → mejor coincidencia/distrito)
+function normalizaDir(dir){
+  return (dir||'').trim()
+    .replace(/^\s*c[\/.]\s*/i,'Calle ')
+    .replace(/^\s*(avda|avd|av)\.?\s+/i,'Avenida ')
+    .replace(/^\s*(pza|plza|pl)\.?\s+/i,'Plaza ')
+    .replace(/^\s*(p[ºo°])\.?\s+/i,'Paseo ')
+    .replace(/^\s*(ctra|crta)\.?\s+/i,'Carretera ')
+    .replace(/^\s*(gta)\.?\s+/i,'Glorieta ')
+    .replace(/^\s*(trav|trva|tr)\.?\s+/i,'Travesía ')
+    .replace(/^\s*(rda)\.?\s+/i,'Ronda ')
+    .replace(/,/g,' ').replace(/\s+/g,' ').trim();
+}
 
 // Al detectar zona, rellena automáticamente los % del municipio y de accesibilidad municipal
 function aplicarZonaAuto(z){
@@ -751,7 +800,7 @@ async function detectarZona(){
   if(!dir){ set('Escribe primero la dirección (bloque 1).','warn'); return; }
   set('Localizando…','load');
   try{
-    const g=await fetch(GEOCODER+"?SingleLine="+encodeURIComponent(dir)+"&outSR=4326&maxLocations=1&outFields=*&f=json",{cache:'no-store'});
+    const g=await fetch(GEOCODER+"?SingleLine="+encodeURIComponent(normalizaDir(dir))+"&outSR=4326&maxLocations=1&outFields=*&f=json",{cache:'no-store'});
     const gj=await g.json();
     const c=gj.candidates&&gj.candidates[0];
     if(!c || c.score<55){ set('Dirección no localizada en Madrid. Elige la zona a mano.','warn'); return; }
@@ -789,7 +838,7 @@ function catastroExtraer(obj,acc){
 // El distrito (de Madrid capital) lo da el geocodificador del Ayuntamiento, no el Catastro
 async function distritoDesdeGeocoder(dir){
   try{
-    const g=await fetch(GEOCODER+"?SingleLine="+encodeURIComponent(dir)+"&outSR=4326&maxLocations=1&outFields=DISTRITO_NOMBRE&f=json",{cache:'no-store'});
+    const g=await fetch(GEOCODER+"?SingleLine="+encodeURIComponent(normalizaDir(dir))+"&outSR=4326&maxLocations=1&outFields=DISTRITO_NOMBRE&f=json",{cache:'no-store'});
     const gj=await g.json(); const c=gj.candidates&&gj.candidates[0];
     const dn=c&&c.attributes&&c.attributes.DISTRITO_NOMBRE;
     if(dn && $('#distrito')){ $('#distrito').value=dn; return dn; }
@@ -814,13 +863,22 @@ async function datosCatastro(){
   set('Consultando catastro…','load');
   try{
     const muni=(($('#municipio')&&$('#municipio').value)||'MADRID').trim().toUpperCase();
-    const u=CATASTRO_DNPLOC+"?Provincia=MADRID&Municipio="+encodeURIComponent(muni)+"&Sigla="+p.sigla+"&Calle="+encodeURIComponent(p.calle)+"&Numero="+encodeURIComponent(p.num);
-    const r=await fetch(u,{cache:'no-store'}); const j=await r.json();
-    const acc=[]; catastroExtraer(j,acc);
+    // El Catastro suele guardar la vía SIN artículos internos ("PICO DE LOS ARTILLEROS" → "PICO ARTILLEROS")
+    const sinArt=p.calle.replace(/\b(DE\s+LAS|DE\s+LOS|DE\s+LA|DEL|DE|Y|E)\b/gi,' ').replace(/\s+/g,' ').trim();
+    const calles=[...new Set([p.calle, sinArt].filter(Boolean))];
+    const siglas=[...new Set([p.sigla,'CL','AV','PS','GL','PZ','CR','CM'])];
+    const consulta=async(sigla,calle)=>{
+      const u=CATASTRO_DNPLOC+"?Provincia=MADRID&Municipio="+encodeURIComponent(muni)+"&Sigla="+sigla+"&Calle="+encodeURIComponent(calle)+"&Numero="+encodeURIComponent(p.num);
+      const r=await fetch(u,{cache:'no-store'}); const j=await r.json(); const a=[]; catastroExtraer(j,a);
+      const root=j.consulta_dnplocResult||j; const cudnp=(root.control&&root.control.cudnp)||a.length;
+      return {acc:a,cudnp};
+    };
+    let hit=null;
+    for(const calle of calles){ if(hit)break; const res=await consulta(p.sigla,calle); if(res.acc.length){ hit={...res,sigla:p.sigla,calle}; } }
+    if(!hit){ for(const sigla of siglas){ if(hit)break; for(const calle of calles){ if(hit)break; const res=await consulta(sigla,calle); if(res.acc.length){ hit={...res,sigla,calle}; } } } }
     if(muni==='MADRID') await distritoDesdeGeocoder(dir);  // autorrellena el distrito (solo Madrid capital)
-    const root=j.consulta_dnplocResult||j;
-    const cudnp=(root.control&&root.control.cudnp)||acc.length;
-    if(!acc.length){ set('Sin datos en Catastro para «'+p.calle+' '+p.num+'». Revisa la dirección o rellena a mano.','warn'); return; }
+    if(!hit){ set('Sin datos en Catastro para «'+p.calle+' '+p.num+'». Revisa el municipio o escribe la calle sin "de los/de la".','warn'); return; }
+    const acc=hit.acc; const cudnp=hit.cudnp;
     const viv=acc.filter(x=>/Residencial/i.test(x.uso));
     const loc=acc.filter(x=>/Comercial|Oficina/i.test(x.uso));
     const anio=acc.map(x=>x.ant).filter(Boolean).sort()[0]||'';
@@ -942,6 +1000,11 @@ function parsePresupuesto(lines){
   if(m=text.match(/TASAS[\s\S]{0,160}?(\d{1,2}(?:,\d+)?)\s*%\s+(\d{1,3}(?:\.\d{3})*,\d{2})/i)){ out.tasasPct=numES(m[1]); out.tasasEur=numES(m[2]); }
   if(m=text.match(/Bonificad[oa]\s+al\s+(\d{1,3})\s*%/i)) out.tasasBonif=numES(m[1]);
 
+  // --- Financiación (si el PDF trae la página de estimación) ---
+  if(m=full.match(/A\s+(\d{1,3})\s+MESES/i)||full.match(/(\d{1,3})\s+MESES/i)) out.finPlazo=+m[1];
+  if(m=full.match(/TIPO\s+DE\s+INTER[ÉE]S\D{0,12}(\d{1,2}(?:,\d+)?)\s*%/i)) out.finInteres=numES(m[1]);
+  if(m=full.match(/ENTRADA\s+INICIAL[^\n]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i)) out.finEntrada=numES(m[1]);
+
   // --- Dirección / viviendas (en todo el documento) ---
   // CLIENTE: en la MISMA línea y que parezca dirección (lleva nº o palabra de vía); descarta "FECHA:"/"PRESUPUESTO:" y vacíos
   const esEmpresa=(s)=>/OVIEDO|LEGAN[ÉE]S|PROYECTON/i.test(s);
@@ -1041,6 +1104,10 @@ function aplicarImport(d){
     const z=$('#zona').value; const cam=(CUANTIAS.accesibilidad.cam.zonas||{})[z];
     set('pctAccCam', cam? (cam.pct*100) : 75); set('topeAccCam', cam? cam.topeViv : 10000);
   } else { set('costeAcc','0'); }
+  // ===== Financiación detectada en el PDF =====
+  if(d.finPlazo!=null) set('finPlazo',d.finPlazo);
+  if(d.finInteres!=null) set('finInteres',d.finInteres);
+  if(d.finEntrada!=null) set('finEntrada',d.finEntrada.toFixed(2));
   // ===== Autorrelleno de % desde los selectores (tramo estatal y zona->Rehabilita) =====
   if(typeof aplicarTramoEstatal==='function') aplicarTramoEstatal();
   if(typeof setRehabFromZona==='function') setRehabFromZona();
@@ -1184,7 +1251,20 @@ function calcular(d){
   if(pctSobreCoste>=C.semaforo.verde) sem='verde';
   else if(pctSobreCoste>=C.semaforo.ambar) sem='ambar';
 
+  // Financiación (amortización francesa). Base = resto tras subvenciones (o coste total), menos entrada.
+  const finBaseImporte=(d.finBase==='total'?costeTotal:restoVecinos);
+  const finEntrada=Math.min(Math.max(0,d.finEntrada||0),finBaseImporte);
+  const finPrincipal=Math.max(0,finBaseImporte-finEntrada);
+  const finMeses=Math.max(1,Math.round(d.finPlazo||120));
+  const finIm=(d.finInteres||0)/100/12;
+  const finCuota=finPrincipal<=0?0:(finIm>0?finPrincipal*finIm/(1-Math.pow(1+finIm,-finMeses)):finPrincipal/finMeses);
+  const finTotal=finCuota*finMeses;
+  const finIntereses=Math.max(0,finTotal-finPrincipal);
+  const finCuotaViv=d.numViv>0?finCuota/d.numViv:0;
+  const finTotalViv=d.numViv>0?finTotal/d.numViv:0;
+
   return {e,tramo,zona,fueraAmbito,incluyeRehab,reh_pct,pctEst,baseEnergia,
+    finBaseImporte,finEntrada,finPrincipal,finMeses,finIm,finCuota,finTotal,finIntereses,finCuotaViv,finTotalViv,
     est_porPct,est_topeViv,est_viv,est_locales,estatalTotal,
     reh_porPct,reh_topeViv,rehabTotal,grantsBrutos,grantsCapados,recorteGrants,
     accCoste,nivel,acc_est,acc_cam,accBrutos,accCapados,recorteAcc,
@@ -1209,6 +1289,8 @@ function leerDatos(){
     costeAccesibilidad:num($('#costeAcc').value),nivelAcc:$('#nivelAcc').value,
     pctAccEstatal:num($('#pctAccEstatal').value),pctAccCam:num($('#pctAccCam').value),topeAccCam:num($('#topeAccCam').value),
     vuln:$('#vuln').value,vulnViv:num($('#vulnViv').value),cae:num($('#cae').value),caePct:num($('#caePct').value),caeInc:$('#caeInc').checked,
+    finInc:($('#finInc')?$('#finInc').checked:false),finBase:($('#finBase')?$('#finBase').value:'resto'),
+    finEntrada:num($('#finEntrada')&&$('#finEntrada').value),finPlazo:num($('#finPlazo')&&$('#finPlazo').value),finInteres:num($('#finInteres')&&$('#finInteres').value),
     modo:(typeof MODO!=='undefined'?MODO:'completo')
   };
 }
@@ -1317,7 +1399,7 @@ function renderInforme(){
     <div class="doc-head">
       <img class="logo-img" src="https://proyecton.es/wp-content/uploads/2025/08/LOGO_TRANSPARENTE_sombra-scaled.png" alt="Revestimientos Proyecton" onerror="this.style.display='none'">
       <div><h2>Informe de Subvenciones a la Rehabilitación</h2></div>
-      <div class="who"><b>Proyecton Global Energy SL</b>CIF B86608312 · Leganés (Madrid)<br>info@proyecton.es</div>
+      <div class="who"><b>Revestimientos Proyecton SLU</b>CIF B86608312 · Leganés (Madrid)<br>info@proyecton.es</div>
     </div>
     <p class="doc-sub"><b>${d.direccion||'(sin dirección)'}</b> · ${d.municipio||'Madrid'}${(d.distrito&&!/otro/i.test(d.distrito))?' ('+d.distrito+')':''} · ${fmtNum(d.numViv)} viviendas · ${fechaHoy}</p>
 
@@ -1434,6 +1516,27 @@ function renderInforme(){
     </tbody></table>
     <div class="avisobox acc"><span class="ic" aria-hidden="true">🧾</span><div><b>Desgravación IRPF (rehabilitación energética):</b> cada vecino puede deducir el <b>${fmtPct(r.irpfPct)}</b> de lo que paga en su declaración de la renta, hasta <b>${fmtEUR(r.irpfMaxAnual)}/año</b> y un máximo de <b>${fmtEUR(r.irpfMaxTotal)} en 3 años</b>. En este caso ≈ <b>${fmtEUR(r.irpfDeduccion)}</b> por vivienda (repartible en ${r.irpfAnios} año/s).</div></div>
 
+    ${(d.finInc && r.finBaseImporte>0)?`
+    <div class="sub">🏦 Financiación</div>
+    <div class="fin-wrap">
+      <div class="fin-head">
+        <span class="t">Pago aplazado ${r.finMeses%12===0?'a '+(r.finMeses/12)+' años':'a '+r.finMeses+' meses'}</span>
+        <span class="meta">${d.finBase==='total'?'sobre el coste total':'sobre el resto tras subvenciones'} · interés ${fmtNum(d.finInteres)} % anual</span>
+      </div>
+      <div class="fin-hero">
+        <span class="big">${fmtEUR(r.finCuotaViv)}</span>
+        <span class="cap">al mes por vivienda${r.finMeses%12===0?' · durante '+(r.finMeses/12)+' años':''}</span>
+      </div>
+      <div class="fin-cards">
+        <div class="fin-card"><div class="l">Importe a financiar</div><div class="v">${fmtEUR(r.finPrincipal)}</div><div class="s">${r.finEntrada>0?'tras entrada de '+fmtEUR(r.finEntrada):'sin entrada inicial'}</div></div>
+        <div class="fin-card"><div class="l">Cuota comunidad / mes</div><div class="v">${fmtEUR(r.finCuota)}</div><div class="s">${fmtNum(d.numViv)} viviendas</div></div>
+        <div class="fin-card"><div class="l">Plazo</div><div class="v">${r.finMeses%12===0?(r.finMeses/12)+' años':r.finMeses+' meses'}</div><div class="s">${r.finMeses} cuotas</div></div>
+        <div class="fin-card"><div class="l">Total a pagar</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">${r.finIntereses>0?'incl. '+fmtEUR(r.finIntereses)+' de interés':'sin intereses'}</div></div>
+      </div>
+      <div class="fin-foot">Cuota constante (sistema francés)${r.finIm>0?' · intereses al '+fmtNum(d.finInteres)+' % anual ('+fmtEUR(r.finIntereses)+' en total)':' · sin intereses'}. Coste total por vivienda con la financiación: <b>${fmtEUR(r.finTotalViv)}</b>. La cuota definitiva depende de la entidad financiera.</div>
+    </div>
+    `:''}
+
     ${avisos}
 
     <div class="sub">Plazos y requisitos clave</div>
@@ -1442,7 +1545,7 @@ function renderInforme(){
     <div class="legalbox"><b>AVISO LEGAL:</b> cuantías <b>ORIENTATIVAS</b>, sujetas a convocatoria vigente, disponibilidad presupuestaria y verificación técnica del ahorro. <b>Plan Estatal</b>: RD 326/2026 (BOE, gestión por las CCAA), cifras verificadas en el BOE. <b>Plan Rehabilita Madrid 2026</b>: Ayuntamiento de Madrid (BOAM nº 10138), cuantías provisionales pendientes de verificar el Anexo I. Los % e importes pueden variar por convocatoria. Este informe no es resolución administrativa ni garantiza la concesión. Generado el ${fechaHoy}.</div>
 
     <div class="doc-foot">
-      <div><b>Proyecton Global Energy SL</b> · CIF B86608312 · Leganés (Madrid)</div>
+      <div><b>Revestimientos Proyecton SLU</b> · CIF B86608312 · Leganés (Madrid)</div>
       <div>info@proyecton.es · Rehabilitación integral de edificios en Madrid</div>
     </div>`;
 }
@@ -1459,7 +1562,8 @@ function snapshot(){return{
   capitulos:leerCapitulos(),ivaObra:$('#ivaObra').value,honTec:$('#honTec').value,honAgente:$('#honAgente').value,
   ivaHon:$('#ivaHon').value,tasasPct:$('#tasasPct').value,costeAcc:$('#costeAcc').value,nivelAcc:$('#nivelAcc').value,
   pctAccEstatal:$('#pctAccEstatal').value,pctAccCam:$('#pctAccCam').value,topeAccCam:$('#topeAccCam').value,
-  vuln:$('#vuln').value,vulnViv:$('#vulnViv').value,cae:$('#cae').value,caePct:$('#caePct').value,caeInc:$('#caeInc').checked};}
+  vuln:$('#vuln').value,vulnViv:$('#vulnViv').value,cae:$('#cae').value,caePct:$('#caePct').value,caeInc:$('#caeInc').checked,
+  finInc:($('#finInc')?$('#finInc').checked:true),finBase:($('#finBase')?$('#finBase').value:'resto'),finEntrada:($('#finEntrada')?$('#finEntrada').value:'0'),finPlazo:($('#finPlazo')?$('#finPlazo').value:'120'),finInteres:($('#finInteres')?$('#finInteres').value:'5')};}
 function aplicar(s){
   if(!s)return;
   const set=(id,v)=>{if($('#'+id)!=null&&v!=null)$('#'+id).value=v;};
@@ -1473,6 +1577,8 @@ function aplicar(s){
   set('costeAcc',s.costeAcc);setD('nivelAcc',s.nivelAcc,'general');setD('pctAccEstatal',s.pctAccEstatal,70);setD('pctAccCam',s.pctAccCam,75);setD('topeAccCam',s.topeAccCam,10000);
   set('vuln',s.vuln);set('vulnViv',s.vulnViv);set('cae',s.cae);setD('caePct',s.caePct,6);
   $('#caeInc').checked=s.caeInc!==false;sincCaeChk();
+  setD('finBase',s.finBase,'resto');setD('finEntrada',s.finEntrada,'0');setD('finPlazo',s.finPlazo,'120');setD('finInteres',s.finInteres,'5');
+  if($('#finInc')){$('#finInc').checked=s.finInc!==false;if($('#finChkLbl'))$('#finChkLbl').classList.toggle('on',$('#finInc').checked);}
   $$('#actChecks input').forEach(i=>{i.checked=(s.actuaciones||[]).includes(i.value);i.closest('.chk').classList.toggle('on',i.checked);});
   $('#capitulos').innerHTML='';(s.capitulos&&s.capitulos.length?s.capitulos:[{nombre:'',importe:''}]).forEach(c=>addCapitulo(c.nombre,c.importe));
   toggleVulnViv();toggleLocales();syncOptCards();recalcEco();
@@ -1560,6 +1666,7 @@ function init(){
   $('#vuln').addEventListener('change',toggleVulnViv);
   $('#tieneLocales').addEventListener('change',()=>{toggleLocales();recalcEco();});
   $('#caeInc').addEventListener('change',sincCaeChk);
+  if($('#finInc'))$('#finInc').addEventListener('change',()=>{if($('#finChkLbl'))$('#finChkLbl').classList.toggle('on',$('#finInc').checked);});
   $('#btnGuardar').addEventListener('click',guardarPresupuesto);
   $('#btnCargar').addEventListener('click',cargarPresupuesto);
   $('#btnBorrar').addEventListener('click',borrarPresupuesto);
