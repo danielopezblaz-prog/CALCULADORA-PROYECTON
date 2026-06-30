@@ -491,6 +491,7 @@
           <div class="field"><label for="honAgente">Honorarios agente rehabilitador (€)</label><input id="honAgente" type="number" min="0" step="0.01" placeholder="0"></div>
           <div class="field"><label for="ivaHon">IVA de honorarios (%)</label><input id="ivaHon" type="number" min="0" max="100" step="0.1" value="21"></div>
           <div class="field"><label for="tasasPct">Tasas no subvencionables · ICIO + Tasas (% del PEM)</label><input id="tasasPct" type="number" min="0" max="100" step="0.1" value="4"><span class="hint">No subvencionables: las paga siempre la comunidad.</span></div>
+          <div class="field"><label for="tasasBonif">Bonificación ICIO/tasas (% de descuento)</label><input id="tasasBonif" type="number" min="0" max="100" step="1" value="0"><span class="hint">En <b>ZETU</b> suele estar bonificado al <b>75 %</b> (se rellena solo al detectar la zona).</span></div>
         </div>
 
         <div class="sub" style="margin-top:18px">Actuaciones de accesibilidad (opcional)</div>
@@ -741,6 +742,8 @@ function aplicarTramoEstatal(){
 // La ZONA (+ mejora de letra) fija el % de Rehabilita. Fuera de ámbito (NINGUNA) → 0 (no se incluye).
 function setRehabFromZona(){
   const z=$('#zona').value;
+  // Bonificación ICIO/tasas: en ZETU el Ayuntamiento bonifica el 75 % (editable)
+  if($('#tasasBonif')) $('#tasasBonif').value = (z==='ZETU') ? '75' : '0';
   if(z==='NINGUNA'){ $('#pctRehab').value='0'; $('#topeVivRehab').value='0'; recalcEco(); return; }
   const zona=CUANTIAS.rehabilita.zonas[z]||CUANTIAS.rehabilita.zonas.ZIRE;
   const letra=$('#presetRehab').value||'una_letra';
@@ -1097,9 +1100,13 @@ function aplicarImport(d){
   set('honAgente', d.honAgente!=null?d.honAgente.toFixed(2):null);
   if(d.capitulos.length){ $('#capitulos').innerHTML=''; d.capitulos.forEach(c=>addCapitulo(c.nombre,c.importe.toFixed(2))); }
   const pemImp=d.pem||d.capitulos.reduce((a,c)=>a+c.importe,0);
-  // Tasas: importe real del PDF (con bonificación ICIO) -> % efectivo sobre el PEM COMPLETO
-  let tp=d.tasasPct; if(d.tasasEur!=null && pemImp>0) tp=+(d.tasasEur/pemImp*100).toFixed(4);
-  set('tasasPct', tp!=null?tp:null);
+  // Tasas: si el PDF trae bonificación ICIO (p. ej. ZETU 75%), usar % base + bonificación; si no, % efectivo
+  if(d.tasasBonif!=null && d.tasasPct!=null){
+    set('tasasPct', d.tasasPct); set('tasasBonif', d.tasasBonif);
+  } else {
+    let tp=d.tasasPct; if(d.tasasEur!=null && pemImp>0) tp=+(d.tasasEur/pemImp*100).toFixed(4);
+    set('tasasPct', tp!=null?tp:null); set('tasasBonif','0');
+  }
   // ===== Ascensor = CARVE-OUT: parte del subvencionable que va al 75% municipal (no se mueve nada) =====
   const accPEM=d.capitulos.filter(c=>c.acc).reduce((a,c)=>a+c.importe,0);
   if(accPEM>0){
@@ -1154,7 +1161,7 @@ function recalcEco(){
     <tr><td>Honorarios agente rehabilitador + IVA</td><td class="num">${fmtEUR(e.honAgenteConIva)}</td></tr>
     <tr class="total"><td>COSTE SUBVENCIONABLE</td><td class="num">${fmtEUR(e.costeSubvencionable)}</td></tr>
     ${accRow}
-    <tr><td>Tasas no subvencionables · ICIO+Tasas (${fmtNum(d.tasasPct)} % PEM)</td><td class="num">${fmtEUR(e.tasasEur)}</td></tr>
+    <tr><td>Tasas no subvencionables · ICIO+Tasas (${fmtNum(d.tasasPct)} % PEM${e.tasasBonif>0?`, bonif. ${fmtNum(e.tasasBonif)} %`:''})</td><td class="num">${fmtEUR(e.tasasEur)}</td></tr>
     <tr class="total"><td>COSTE TOTAL PARA LA COMUNIDAD</td><td class="num">${fmtEUR(e.costeTotalComunidad)}</td></tr>
   </tbody></table>`;
 }
@@ -1170,9 +1177,11 @@ function calcEconomia(d){
   const honTecConIva=d.honTec+honTecIva;
   const honAgenteConIva=d.honAgente+honAgenteIva;
   const costeSubvencionable=pem+ivaObraEur+honTecConIva+honAgenteConIva;
-  const tasasEur=pem*(d.tasasPct/100);
+  const tasasBonif=d.tasasBonif||0;
+  const tasasBruta=pem*(d.tasasPct/100);
+  const tasasEur=tasasBruta*(1-tasasBonif/100);
   const costeTotalComunidad=costeSubvencionable+tasasEur;
-  return {pem,ivaObraEur,honTec:d.honTec,honTecIva,honTecConIva,honAgente:d.honAgente,honAgenteIva,honAgenteConIva,costeSubvencionable,tasasEur,costeTotalComunidad};
+  return {pem,ivaObraEur,honTec:d.honTec,honTecIva,honTecConIva,honAgente:d.honAgente,honAgenteIva,honAgenteConIva,costeSubvencionable,tasasBruta,tasasBonif,tasasEur,costeTotalComunidad};
 }
 
 function calcular(d){
@@ -1290,7 +1299,7 @@ function leerDatos(){
     pctRehab:num($('#pctRehab').value),topeVivRehab:num($('#topeVivRehab').value),
     actuaciones:[...$$('#actChecks input:checked')].map(i=>i.value),
     capitulos:leerCapitulos(),ivaObra:num($('#ivaObra').value),honTec:num($('#honTec').value),
-    honAgente:num($('#honAgente').value),ivaHon:num($('#ivaHon').value),tasasPct:num($('#tasasPct').value),
+    honAgente:num($('#honAgente').value),ivaHon:num($('#ivaHon').value),tasasPct:num($('#tasasPct').value),tasasBonif:num($('#tasasBonif')&&$('#tasasBonif').value),
     costeAccesibilidad:num($('#costeAcc').value),nivelAcc:$('#nivelAcc').value,
     pctAccEstatal:num($('#pctAccEstatal').value),pctAccCam:num($('#pctAccCam').value),topeAccCam:num($('#topeAccCam').value),
     vuln:$('#vuln').value,vulnViv:num($('#vulnViv').value),cae:num($('#cae').value),caePct:num($('#caePct').value),caeInc:$('#caeInc').checked,
@@ -1461,7 +1470,7 @@ function renderInforme(){
         ${r.e.honAgente>0?infoRow('Agente rehabilitador + IVA',fmtEUR(r.e.honAgenteConIva),`${fmtEUR(r.e.honAgente)} + IVA`):''}
         <tr class="total"><td>COSTE SUBVENCIONABLE</td><td class="num">${fmtEUR(r.e.costeSubvencionable)}</td></tr>
         ${hayAcc?`<tr><td style="font-style:italic;color:var(--gris)">— de los cuales, coste de accesibilidad/ascensor</td><td class="num">${fmtEUR(r.accCoste)}</td></tr><tr><td style="font-style:italic;color:var(--gris)">— resto, energía</td><td class="num">${fmtEUR(r.baseEnergia)}</td></tr>`:''}
-        ${infoRow(`Tasas/ICIO (${fmtNum(d.tasasPct)} % PEM)`,fmtEUR(r.e.tasasEur),`${fmtEUR(r.e.pem)} × ${fmtNum(d.tasasPct)}%`)}
+        ${infoRow(`Tasas/ICIO (${fmtNum(d.tasasPct)} % PEM${r.e.tasasBonif>0?`, bonificado ${fmtNum(r.e.tasasBonif)} %`:''})`,fmtEUR(r.e.tasasEur),`${fmtEUR(r.e.pem)} × ${fmtNum(d.tasasPct)}%${r.e.tasasBonif>0?` × (1 − ${fmtNum(r.e.tasasBonif)} %) = ${fmtEUR(r.e.tasasEur)}`:''}`)}
         <tr class="total"><td>COSTE TOTAL COMUNIDAD</td><td class="num">${fmtEUR(r.costeReal)}</td></tr>
         </tbody></table>
       </div>
@@ -1556,7 +1565,7 @@ function snapshot(){return{
   pctRehab:$('#pctRehab').value,topeVivRehab:$('#topeVivRehab').value,
   actuaciones:[...$$('#actChecks input:checked')].map(i=>i.value),
   capitulos:leerCapitulos(),ivaObra:$('#ivaObra').value,honTec:$('#honTec').value,honAgente:$('#honAgente').value,
-  ivaHon:$('#ivaHon').value,tasasPct:$('#tasasPct').value,costeAcc:$('#costeAcc').value,nivelAcc:$('#nivelAcc').value,
+  ivaHon:$('#ivaHon').value,tasasPct:$('#tasasPct').value,tasasBonif:($('#tasasBonif')?$('#tasasBonif').value:'0'),costeAcc:$('#costeAcc').value,nivelAcc:$('#nivelAcc').value,
   pctAccEstatal:$('#pctAccEstatal').value,pctAccCam:$('#pctAccCam').value,topeAccCam:$('#topeAccCam').value,accMayor:($('#accMayor')?$('#accMayor').value:'no'),
   vuln:$('#vuln').value,vulnViv:$('#vulnViv').value,cae:$('#cae').value,caePct:$('#caePct').value,caeInc:$('#caeInc').checked,
   finInc:($('#finInc')?$('#finInc').checked:true),finBase:($('#finBase')?$('#finBase').value:'resto'),finEntrada:($('#finEntrada')?$('#finEntrada').value:'0'),finPlazo:($('#finPlazo')?$('#finPlazo').value:'120'),finInteres:($('#finInteres')?$('#finInteres').value:'5')};}
@@ -1569,7 +1578,7 @@ function aplicar(s){
   set('zona',s.zona);setD('ahorroNivel',s.ahorroNivel,'parcial');setD('presetRehab',s.presetRehab,'una_letra');
   setD('pctEstatal',s.pctEstatal,40);setD('topeVivEstatal',s.topeVivEstatal,7500);setD('euroM2Local',s.euroM2Local,90);
   setD('pctRehab',s.pctRehab,50);setD('topeVivRehab',s.topeVivRehab,8000);
-  setD('ivaObra',s.ivaObra,10);set('honTec',s.honTec);set('honAgente',s.honAgente);setD('ivaHon',s.ivaHon,21);setD('tasasPct',s.tasasPct,4);
+  setD('ivaObra',s.ivaObra,10);set('honTec',s.honTec);set('honAgente',s.honAgente);setD('ivaHon',s.ivaHon,21);setD('tasasPct',s.tasasPct,4);setD('tasasBonif',s.tasasBonif,0);
   set('costeAcc',s.costeAcc);setD('nivelAcc',s.nivelAcc,'general');setD('pctAccEstatal',s.pctAccEstatal,70);setD('pctAccCam',s.pctAccCam,75);setD('topeAccCam',s.topeAccCam,10000);setD('accMayor',s.accMayor,'no');
   set('vuln',s.vuln);set('vulnViv',s.vulnViv);set('cae',s.cae);setD('caePct',s.caePct,6);
   $('#caeInc').checked=s.caeInc!==false;sincCaeChk();
