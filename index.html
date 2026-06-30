@@ -1511,15 +1511,13 @@ function renderInforme(){
       ${infoRow('Resto por vivienda',fmtEUR(r.restoPorViv),`${fmtEUR(r.restoVecinos)} / ${fmtNum(d.numViv)} viviendas`)}
     </tbody></table>
 
-    <div class="sub">Por vivienda: lo que paga el vecino y desgravación IRPF</div>
+    <div class="sub">Por vivienda: lo que paga cada vecino</div>
     <table><caption class="visually-hidden">Coste por vivienda</caption>
     <thead><tr><th scope="col">Concepto (por vivienda)</th><th scope="col" class="num">Importe</th></tr></thead><tbody>
       <tr><td>Subvención media obtenida por vivienda</td><td class="num">${fmtEUR(r.subvPorViv)}</td></tr>
-      <tr class="subtot"><td>Resto a pagar por vivienda</td><td class="num">${fmtEUR(r.restoPorViv)}</td></tr>
-      ${infoRow('Desgravación IRPF ('+fmtPct(r.irpfPct)+')',fmtEUR(r.irpfDeduccion),`${fmtPct(r.irpfPct)} de ${fmtEUR(r.restoPorViv)} = ${fmtEUR(r.restoPorViv*r.irpfPct)}, limitado a ${fmtEUR(r.irpfMaxTotal)} (máx ${fmtEUR(r.irpfMaxAnual)}/año · ${r.irpfAnios} año/s)`)}
-      <tr class="total"><td>COSTE NETO por vivienda tras IRPF</td><td class="num">${fmtEUR(r.netoTrasIrpf)}</td></tr>
+      <tr class="total"><td>LO QUE PAGA CADA VIVIENDA</td><td class="num">${fmtEUR(r.restoPorViv)}</td></tr>
     </tbody></table>
-    <div class="avisobox acc"><span class="ic" aria-hidden="true">🧾</span><div><b>Desgravación IRPF (rehabilitación energética):</b> cada vecino puede deducir el <b>${fmtPct(r.irpfPct)}</b> de lo que paga en su declaración de la renta, hasta <b>${fmtEUR(r.irpfMaxAnual)}/año</b> y un máximo de <b>${fmtEUR(r.irpfMaxTotal)} en 3 años</b>. En este caso ≈ <b>${fmtEUR(r.irpfDeduccion)}</b> por vivienda (repartible en ${r.irpfAnios} año/s).</div></div>
+    <div class="avisobox acc"><span class="ic" aria-hidden="true">🧾</span><div><b>Nota informativa — desgravación IRPF:</b> además, cada vecino podrá deducir en su declaración de la renta el <b>${fmtPct(r.irpfPct)}</b> de lo que pague (hasta <b>${fmtEUR(r.irpfMaxAnual)}/año</b> y un máximo de <b>${fmtEUR(r.irpfMaxTotal)} en 3 años</b>). Orientativamente serían ≈ <b>${fmtEUR(r.irpfDeduccion)}</b> por vivienda. <i>No se descuenta en el total: es un ahorro fiscal posterior.</i></div></div>
 
     ${(d.finInc && r.finBaseImporte>0)?`
     <div class="sub">🏦 Financiación</div>
