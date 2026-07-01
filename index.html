@@ -1031,7 +1031,7 @@ function parsePresupuesto(lines){
   // --- Financiación (si el PDF trae la página de estimación) ---
   if(m=full.match(/A\s+(\d{1,3})\s+MESES/i)||full.match(/(\d{1,3})\s+MESES/i)) out.finPlazo=+m[1];
   if(m=full.match(/TIPO\s+DE\s+INTER[ÉE]S\D{0,12}(\d{1,2}(?:,\d+)?)\s*%/i)) out.finInteres=numES(m[1]);
-  if(m=full.match(/ENTRADA\s+INICIAL[^\n]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i)) out.finEntrada=numES(m[1]);
+  if(m=full.match(/ENTRADA\s+INICIAL\s+DE\s+LA\s+COMUNIDAD[^\n]{0,20}?(-|\d{1,3}(?:\.\d{3})*,\d{2})\s*€/i)) out.finEntrada=(m[1]==='-'?0:numES(m[1]));
 
   // --- Dirección / viviendas (en todo el documento) ---
   // CLIENTE: en la MISMA línea y que parezca dirección (lleva nº o palabra de vía); descarta "FECHA:"/"PRESUPUESTO:" y vacíos
@@ -1139,7 +1139,7 @@ function aplicarImport(d){
   // ===== Financiación detectada en el PDF =====
   if(d.finPlazo!=null) set('finPlazo',d.finPlazo);
   if(d.finInteres!=null) set('finInteres',d.finInteres);
-  if(d.finEntrada!=null) set('finEntrada',d.finEntrada.toFixed(2));
+  set('finEntrada', d.finEntrada!=null? d.finEntrada.toFixed(2) : '0');  // siempre se resetea: 0 salvo que el PDF traiga entrada real
   // ===== Autorrelleno de % desde los selectores (tramo estatal y zona->Rehabilita) =====
   if(typeof aplicarTramoEstatal==='function') aplicarTramoEstatal();
   if(typeof setRehabFromZona==='function') setRehabFromZona();
@@ -1592,9 +1592,8 @@ function renderInforme(){
         </div>
       </div>
       <div class="fin-cards">
-        <div class="fin-card"><div class="l">Capital financiado</div><div class="v">${fmtEUR(r.finPrincipal)}</div><div class="s">coste total de la obra</div></div>
+        <div class="fin-card"><div class="l">Capital financiado</div><div class="v">${fmtEUR(r.finPrincipal)}</div><div class="s">+ intereses: ${fmtEUR(r.finIntereses)}${r.finEntrada>0?' · tras entrada de '+fmtEUR(r.finEntrada):''}</div></div>
         <div class="fin-card"><div class="l">Subvenciones a recibir</div><div class="v">${fmtEUR(r.obtenibleReal)}</div><div class="s">si se conceden todas</div></div>
-        <div class="fin-card"><div class="l">Total que paga la comunidad</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">intereses incluidos (${fmtEUR(r.finIntereses)})</div></div>
       </div>
       <div class="fin-resumen">💡 Se financia el <b>coste total de la obra (${fmtEUR(r.finPrincipal)})</b>. Durante los <b>primeros ${r.finK%12===0?(r.finK/12)+' años':r.finK+' meses'}</b> se paga la cuota completa; <b>si se conceden todas las subvenciones (${fmtEUR(r.obtenibleReal)})</b>, se descuentan del saldo a ese momento y la cuota baja durante los <b>${r.finRem%12===0?(r.finRem/12)+' años':r.finRem+' meses'} restantes</b>. En total, la comunidad paga <b>${fmtEUR(r.finTotal)}</b>, con <b>${fmtEUR(r.finIntereses)} de intereses</b> incluidos.</div>
       <div class="fin-foot">Plazo total ${r.finMeses%12===0?(r.finMeses/12)+' años':r.finMeses+' meses'} · cuota constante (sistema francés)${r.finIm>0?' al '+fmtNum(d.finInteres)+' % anual':' sin intereses'}. Las subvenciones están sujetas a concesión; la cuota definitiva depende de la entidad financiera.</div>
@@ -1672,6 +1671,7 @@ function cargarEjemplo(){
   set('ivaObra','10');set('honTec','15000');set('honAgente','0');set('ivaHon','21');set('tasasPct','4');
   set('costeAcc','99000');set('nivelAcc','general');set('pctAccEstatal','70');set('pctAccCam','75');set('topeAccCam','10000');if($('#accMayor'))$('#accMayor').value='no';
   set('vuln','no');set('vulnViv','');set('cae','');set('caePct','6');$('#caeInc').checked=true;
+  set('finEntrada','0');set('finPlazo','120');set('finInteres','5');set('finMesesSubv','24');
   $$('#actChecks input').forEach(i=>{i.checked=(i.value==='fachada');i.closest('.chk').classList.toggle('on',i.checked);});
   $('#capitulos').innerHTML='';
   addCapitulo('Instalación de ascensor','90000');addCapitulo('Medios auxiliares','39556.28');addCapitulo('Actuaciones previas y desmont. elementos de fachada','21255.55');
