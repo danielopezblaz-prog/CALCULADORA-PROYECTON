@@ -563,17 +563,19 @@
       <h2 class="head" id="h6f"><span class="num" aria-hidden="true">6</span> 🏦 Financiación (opcional)</h2>
       <div class="body">
         <label class="chk on" id="finChkLbl"><input id="finInc" type="checkbox" checked> Incluir apartado de financiación en el informe</label>
+        <label class="chk on" id="finDosFasesLbl" style="margin-top:8px"><input id="finDosFases" type="checkbox" checked> Cuota en 2 fases (la subvención se cobra más tarde y recalcula la cuota)</label>
+        <span class="hint" style="display:block;margin-top:4px">Con 2 fases: durante los primeros meses se paga sobre el <b>coste total</b> (aún sin subvención); al cobrarla se resta del saldo y baja la cuota para el resto del plazo.</span>
         <div class="grid" style="margin-top:10px">
           <div class="field">
-            <label for="finBase">¿Qué se financia?</label>
+            <label for="finBase">¿Qué se financia? <span class="hint" style="font-weight:400">(solo si NO usas 2 fases)</span></label>
             <select id="finBase">
               <option value="resto">Resto a pagar tras subvenciones</option>
               <option value="total">Coste total (antes de subvenciones)</option>
             </select>
-            <span class="hint">Lo habitual: el resto que pagan los vecinos.</span>
           </div>
+          <div class="field"><label for="finMesesSubv">Meses hasta cobrar la subvención</label><input id="finMesesSubv" type="number" min="0" max="120" step="1" value="24"><span class="hint">Normalmente unos 24 meses (2 años).</span></div>
           <div class="field"><label for="finEntrada">Entrada inicial de la comunidad (€)</label><input id="finEntrada" type="number" min="0" step="0.01" value="0"></div>
-          <div class="field"><label for="finPlazo">Plazo (meses)</label><input id="finPlazo" type="number" min="1" max="360" step="1" value="120"><span class="hint">120 meses = 10 años.</span></div>
+          <div class="field"><label for="finPlazo">Plazo total (meses)</label><input id="finPlazo" type="number" min="1" max="360" step="1" value="120"><span class="hint">120 meses = 10 años.</span></div>
           <div class="field"><label for="finInteres">Tipo de interés anual (%)</label><input id="finInteres" type="number" min="0" max="30" step="0.01" value="5"><span class="hint">Pon 0 si es sin intereses.</span></div>
         </div>
       </div>
@@ -1265,20 +1267,48 @@ function calcular(d){
   if(pctSobreCoste>=C.semaforo.verde) sem='verde';
   else if(pctSobreCoste>=C.semaforo.ambar) sem='ambar';
 
-  // Financiación (amortización francesa). Base = resto tras subvenciones (o coste total), menos entrada.
-  const finBaseImporte=(d.finBase==='total'?costeTotal:restoVecinos);
-  const finEntrada=Math.min(Math.max(0,d.finEntrada||0),finBaseImporte);
-  const finPrincipal=Math.max(0,finBaseImporte-finEntrada);
+  // Financiación (amortización francesa). Dos modos:
+  //  - Normal: financia el resto tras subvenciones (o coste total) menos entrada.
+  //  - DOS FASES: los primeros N meses se paga sobre el COSTE TOTAL (aún sin subvención);
+  //    al cobrar la subvención se resta del saldo pendiente y se RECALCULA la cuota para el resto del plazo.
   const finMeses=Math.max(1,Math.round(d.finPlazo||120));
   const finIm=(d.finInteres||0)/100/12;
-  const finCuota=finPrincipal<=0?0:(finIm>0?finPrincipal*finIm/(1-Math.pow(1+finIm,-finMeses)):finPrincipal/finMeses);
-  const finTotal=finCuota*finMeses;
-  const finIntereses=Math.max(0,finTotal-finPrincipal);
-  const finCuotaViv=d.numViv>0?finCuota/d.numViv:0;
-  const finTotalViv=d.numViv>0?finTotal/d.numViv:0;
+  const finDosFases=!!d.finDosFases;
+  const _cuota=(P,n)=>(P<=0||n<=0)?0:(finIm>0?P*finIm/(1-Math.pow(1+finIm,-n)):P/n);
+  const _saldo=(P,c,k)=>finIm>0?P*Math.pow(1+finIm,k)-c*((Math.pow(1+finIm,k)-1)/finIm):P-c*k;
+  let finBaseImporte,finEntrada,finPrincipal,finCuota,finTotal,finIntereses,finCuotaViv,finTotalViv;
+  let finK=0,finCuota1=0,finCuota2=0,finCuota1Viv=0,finCuota2Viv=0,finSaldoK=0,finSubvAplic=0,finSaldo2=0,finRem=0;
+  if(finDosFases){
+    finBaseImporte=costeTotal;
+    finEntrada=Math.min(Math.max(0,d.finEntrada||0),costeTotal);
+    finPrincipal=Math.max(0,costeTotal-finEntrada);
+    finK=Math.min(Math.max(0,Math.round(d.finMesesSubv||24)),finMeses);
+    finCuota1=_cuota(finPrincipal,finMeses);
+    finSaldoK=Math.max(0,_saldo(finPrincipal,finCuota1,finK));
+    finSubvAplic=Math.min(obtenibleReal,finSaldoK);
+    finSaldo2=Math.max(0,finSaldoK-finSubvAplic);
+    finRem=Math.max(0,finMeses-finK);
+    finCuota2=_cuota(finSaldo2,finRem);
+    finTotal=finCuota1*finK+finCuota2*finRem;
+    finIntereses=Math.max(0,finTotal-(finPrincipal-finSubvAplic));
+    finCuota1Viv=d.numViv>0?finCuota1/d.numViv:0;
+    finCuota2Viv=d.numViv>0?finCuota2/d.numViv:0;
+    finCuota=finCuota1; finCuotaViv=finCuota1Viv;
+    finTotalViv=d.numViv>0?finTotal/d.numViv:0;
+  } else {
+    finBaseImporte=(d.finBase==='total'?costeTotal:restoVecinos);
+    finEntrada=Math.min(Math.max(0,d.finEntrada||0),finBaseImporte);
+    finPrincipal=Math.max(0,finBaseImporte-finEntrada);
+    finCuota=_cuota(finPrincipal,finMeses);
+    finTotal=finCuota*finMeses;
+    finIntereses=Math.max(0,finTotal-finPrincipal);
+    finCuotaViv=d.numViv>0?finCuota/d.numViv:0;
+    finTotalViv=d.numViv>0?finTotal/d.numViv:0;
+  }
 
   return {e,tramo,zona,fueraAmbito,incluyeRehab,reh_pct,pctEst,baseEnergia,
     finBaseImporte,finEntrada,finPrincipal,finMeses,finIm,finCuota,finTotal,finIntereses,finCuotaViv,finTotalViv,
+    finDosFases,finK,finCuota1,finCuota2,finCuota1Viv,finCuota2Viv,finSaldoK,finSubvAplic,finSaldo2,finRem,
     est_porPct,est_topeViv,est_viv,est_locales,estatalTotal,
     reh_porPct,reh_topeViv,rehabTotal,grantsBrutos,grantsCapados,recorteGrants,
     accCoste,nivel,acc_est,acc_cam,accBrutos,accCapados,recorteAcc,
@@ -1305,6 +1335,7 @@ function leerDatos(){
     vuln:$('#vuln').value,vulnViv:num($('#vulnViv').value),cae:num($('#cae').value),caePct:num($('#caePct').value),caeInc:$('#caeInc').checked,
     finInc:($('#finInc')?$('#finInc').checked:false),finBase:($('#finBase')?$('#finBase').value:'resto'),
     finEntrada:num($('#finEntrada')&&$('#finEntrada').value),finPlazo:num($('#finPlazo')&&$('#finPlazo').value),finInteres:num($('#finInteres')&&$('#finInteres').value),
+    finDosFases:($('#finDosFases')?$('#finDosFases').checked:false),finMesesSubv:num($('#finMesesSubv')&&$('#finMesesSubv').value),
     modo:(typeof MODO!=='undefined'?MODO:'completo')
   };
 }
@@ -1515,9 +1546,22 @@ function renderInforme(){
     <div class="sub">🏦 Financiación</div>
     <div class="fin-wrap">
       <div class="fin-head">
-        <span class="t">Pago aplazado ${r.finMeses%12===0?'a '+(r.finMeses/12)+' años':'a '+r.finMeses+' meses'}</span>
-        <span class="meta">${d.finBase==='total'?'sobre el coste total':'sobre el resto tras subvenciones'} · interés ${fmtNum(d.finInteres)} % anual</span>
+        <span class="t">Pago aplazado ${r.finMeses%12===0?'a '+(r.finMeses/12)+' años':'a '+r.finMeses+' meses'}${r.finDosFases?' · en 2 fases':''}</span>
+        <span class="meta">${r.finDosFases?'sobre el coste total; la subvención se aplica a los '+r.finK+' meses':(d.finBase==='total'?'sobre el coste total':'sobre el resto tras subvenciones')} · interés ${fmtNum(d.finInteres)} % anual</span>
       </div>
+      ${r.finDosFases?`
+      <div class="fin-hero">
+        <span class="big">${fmtEUR(r.finCuota1Viv)}</span>
+        <span class="cap">al mes por vivienda los primeros ${r.finK%12===0?(r.finK/12)+' años':r.finK+' meses'} → después <b>${fmtEUR(r.finCuota2Viv)}/mes</b></span>
+      </div>
+      <div class="fin-cards">
+        <div class="fin-card"><div class="l">Fase 1 · cuota/mes</div><div class="v">${fmtEUR(r.finCuota1)}</div><div class="s">primeros ${r.finK} meses · sobre coste total</div></div>
+        <div class="fin-card"><div class="l">Subvención aplicada</div><div class="v">− ${fmtEUR(r.finSubvAplic)}</div><div class="s">a los ${r.finK} meses, baja el saldo</div></div>
+        <div class="fin-card"><div class="l">Fase 2 · cuota/mes</div><div class="v">${fmtEUR(r.finCuota2)}</div><div class="s">resto: ${r.finRem} meses</div></div>
+        <div class="fin-card"><div class="l">Total a pagar</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">${r.finIntereses>0?'incl. '+fmtEUR(r.finIntereses)+' interés':'sin intereses'}</div></div>
+      </div>
+      <div class="fin-foot"><b>Fase 1:</b> ${r.finK} cuotas de ${fmtEUR(r.finCuota1)}/mes (${fmtEUR(r.finCuota1Viv)}/vivienda) sobre el coste total de ${fmtEUR(r.finPrincipal)}. <b>A los ${r.finK} meses</b>, al cobrar las subvenciones (${fmtEUR(r.finSubvAplic)}) el saldo baja a ${fmtEUR(r.finSaldo2)}. <b>Fase 2:</b> ${r.finRem} cuotas de ${fmtEUR(r.finCuota2)}/mes (${fmtEUR(r.finCuota2Viv)}/vivienda). Cuota constante (sistema francés)${r.finIm>0?' al '+fmtNum(d.finInteres)+' % anual':' sin intereses'}. La cuota definitiva depende de la entidad financiera.</div>
+      `:`
       <div class="fin-hero">
         <span class="big">${fmtEUR(r.finCuotaViv)}</span>
         <span class="cap">al mes por vivienda${r.finMeses%12===0?' · durante '+(r.finMeses/12)+' años':''}</span>
@@ -1529,6 +1573,7 @@ function renderInforme(){
         <div class="fin-card"><div class="l">Total a pagar</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">${r.finIntereses>0?'incl. '+fmtEUR(r.finIntereses)+' de interés':'sin intereses'}</div></div>
       </div>
       <div class="fin-foot">Cuota constante (sistema francés)${r.finIm>0?' · intereses al '+fmtNum(d.finInteres)+' % anual ('+fmtEUR(r.finIntereses)+' en total)':' · sin intereses'}. Coste total por vivienda con la financiación: <b>${fmtEUR(r.finTotalViv)}</b>. La cuota definitiva depende de la entidad financiera.</div>
+      `}
     </div>
     `:''}
 
@@ -1558,7 +1603,8 @@ function snapshot(){return{
   ivaHon:$('#ivaHon').value,tasasPct:$('#tasasPct').value,tasasBonif:($('#tasasBonif')?$('#tasasBonif').value:'0'),costeAcc:$('#costeAcc').value,nivelAcc:$('#nivelAcc').value,
   pctAccEstatal:$('#pctAccEstatal').value,pctAccCam:$('#pctAccCam').value,topeAccCam:$('#topeAccCam').value,accMayor:($('#accMayor')?$('#accMayor').value:'no'),
   vuln:$('#vuln').value,vulnViv:$('#vulnViv').value,cae:$('#cae').value,caePct:$('#caePct').value,caeInc:$('#caeInc').checked,
-  finInc:($('#finInc')?$('#finInc').checked:true),finBase:($('#finBase')?$('#finBase').value:'resto'),finEntrada:($('#finEntrada')?$('#finEntrada').value:'0'),finPlazo:($('#finPlazo')?$('#finPlazo').value:'120'),finInteres:($('#finInteres')?$('#finInteres').value:'5')};}
+  finInc:($('#finInc')?$('#finInc').checked:true),finBase:($('#finBase')?$('#finBase').value:'resto'),finEntrada:($('#finEntrada')?$('#finEntrada').value:'0'),finPlazo:($('#finPlazo')?$('#finPlazo').value:'120'),finInteres:($('#finInteres')?$('#finInteres').value:'5'),
+  finDosFases:($('#finDosFases')?$('#finDosFases').checked:true),finMesesSubv:($('#finMesesSubv')?$('#finMesesSubv').value:'24')};}
 function aplicar(s){
   if(!s)return;
   const set=(id,v)=>{if($('#'+id)!=null&&v!=null)$('#'+id).value=v;};
@@ -1572,8 +1618,9 @@ function aplicar(s){
   set('costeAcc',s.costeAcc);setD('nivelAcc',s.nivelAcc,'general');setD('pctAccEstatal',s.pctAccEstatal,70);setD('pctAccCam',s.pctAccCam,75);setD('topeAccCam',s.topeAccCam,10000);setD('accMayor',s.accMayor,'no');
   set('vuln',s.vuln);set('vulnViv',s.vulnViv);set('cae',s.cae);setD('caePct',s.caePct,6);
   $('#caeInc').checked=s.caeInc!==false;sincCaeChk();
-  setD('finBase',s.finBase,'resto');setD('finEntrada',s.finEntrada,'0');setD('finPlazo',s.finPlazo,'120');setD('finInteres',s.finInteres,'5');
+  setD('finBase',s.finBase,'resto');setD('finEntrada',s.finEntrada,'0');setD('finPlazo',s.finPlazo,'120');setD('finInteres',s.finInteres,'5');setD('finMesesSubv',s.finMesesSubv,'24');
   if($('#finInc')){$('#finInc').checked=s.finInc!==false;if($('#finChkLbl'))$('#finChkLbl').classList.toggle('on',$('#finInc').checked);}
+  if($('#finDosFases')){$('#finDosFases').checked=s.finDosFases!==false;if($('#finDosFasesLbl'))$('#finDosFasesLbl').classList.toggle('on',$('#finDosFases').checked);}
   $$('#actChecks input').forEach(i=>{i.checked=(s.actuaciones||[]).includes(i.value);i.closest('.chk').classList.toggle('on',i.checked);});
   $('#capitulos').innerHTML='';(s.capitulos&&s.capitulos.length?s.capitulos:[{nombre:'',importe:''}]).forEach(c=>addCapitulo(c.nombre,c.importe));
   toggleVulnViv();toggleLocales();syncOptCards();recalcEco();
@@ -1669,6 +1716,7 @@ function init(){
   $('#tieneLocales').addEventListener('change',()=>{toggleLocales();recalcEco();});
   $('#caeInc').addEventListener('change',sincCaeChk);
   if($('#finInc'))$('#finInc').addEventListener('change',()=>{if($('#finChkLbl'))$('#finChkLbl').classList.toggle('on',$('#finInc').checked);});
+  if($('#finDosFases'))$('#finDosFases').addEventListener('change',()=>{if($('#finDosFasesLbl'))$('#finDosFasesLbl').classList.toggle('on',$('#finDosFases').checked);recalcEco();});
   if($('#accMayor'))$('#accMayor').addEventListener('change',setAccMayor);
   $('#btnGuardar').addEventListener('click',guardarPresupuesto);
   $('#btnCargar').addEventListener('click',cargarPresupuesto);
