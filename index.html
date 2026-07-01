@@ -164,6 +164,20 @@
   .fin-card .s{font-size:10px;color:var(--gris);margin-top:3px;}
   .fin-foot{font-size:11px;color:var(--gris);padding:0 16px 12px;}
   @media(max-width:620px){.fin-cards{grid-template-columns:repeat(2,1fr);}}
+  /* transición de fases (2 fases) */
+  .fin-fases{display:flex;align-items:stretch;gap:10px;padding:16px;flex-wrap:wrap;background:var(--granate-cl);border-bottom:1px solid var(--linea);}
+  .fin-fase{flex:1 1 200px;background:#fff;border:1.5px solid var(--linea);border-radius:12px;padding:12px 14px;text-align:center;}
+  .fin-fase .et{font-size:10.5px;font-weight:800;text-transform:uppercase;color:var(--gris);letter-spacing:.4px;}
+  .fin-fase .cu{font-size:27px;font-weight:800;line-height:1.02;margin-top:5px;color:var(--granate);}
+  .fin-fase .cu small{font-size:12px;font-weight:700;}
+  .fin-fase .pv{font-size:11.5px;color:var(--carbon);margin-top:3px;}
+  .fin-fase .du{font-size:10.5px;color:var(--gris);margin-top:4px;}
+  .fin-fase.f2{border-color:#2f7d3a;} .fin-fase.f2 .cu{color:#2f7d3a;}
+  .fin-flecha{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 6px;min-width:110px;}
+  .fin-flecha .ar{font-size:26px;color:var(--granate);line-height:1;}
+  .fin-flecha .tx{font-size:10.5px;color:var(--gris);text-align:center;margin-top:3px;}
+  .fin-flecha .sv{font-weight:800;color:#2f7d3a;font-size:13px;margin-top:1px;}
+  @media(max-width:620px){.fin-flecha .ar{transform:rotate(90deg);}}
 
   .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-top:8px;align-items:stretch;}
   @media(max-width:620px){.hero{grid-template-columns:1fr;}}
@@ -1550,17 +1564,32 @@ function renderInforme(){
         <span class="meta">${r.finDosFases?'sobre el coste total; la subvención se aplica a los '+r.finK+' meses':(d.finBase==='total'?'sobre el coste total':'sobre el resto tras subvenciones')} · interés ${fmtNum(d.finInteres)} % anual</span>
       </div>
       ${r.finDosFases?`
-      <div class="fin-hero">
-        <span class="big">${fmtEUR(r.finCuota1Viv)}</span>
-        <span class="cap">al mes por vivienda los primeros ${r.finK%12===0?(r.finK/12)+' años':r.finK+' meses'} → después <b>${fmtEUR(r.finCuota2Viv)}/mes</b></span>
+      <div class="fin-fases">
+        <div class="fin-fase f1">
+          <div class="et">Fase 1 · primeros ${r.finK%12===0?(r.finK/12)+' años':r.finK+' meses'}</div>
+          <div class="cu">${fmtEUR(r.finCuota1Viv)}<small> /mes·viv</small></div>
+          <div class="pv">comunidad ${fmtEUR(r.finCuota1)}/mes</div>
+          <div class="du">se paga sobre el coste total</div>
+        </div>
+        <div class="fin-flecha">
+          <div class="ar">➜</div>
+          <div class="tx">al cobrar la subvención</div>
+          <div class="sv">− ${fmtEUR(r.finSubvAplic)}</div>
+        </div>
+        <div class="fin-fase f2">
+          <div class="et">Fase 2 · resto ${r.finRem%12===0?(r.finRem/12)+' años':r.finRem+' meses'}</div>
+          <div class="cu">${fmtEUR(r.finCuota2Viv)}<small> /mes·viv</small></div>
+          <div class="pv">comunidad ${fmtEUR(r.finCuota2)}/mes</div>
+          <div class="du">saldo pendiente ${fmtEUR(r.finSaldo2)}</div>
+        </div>
       </div>
       <div class="fin-cards">
-        <div class="fin-card"><div class="l">Fase 1 · cuota/mes</div><div class="v">${fmtEUR(r.finCuota1)}</div><div class="s">primeros ${r.finK} meses · sobre coste total</div></div>
-        <div class="fin-card"><div class="l">Subvención aplicada</div><div class="v">− ${fmtEUR(r.finSubvAplic)}</div><div class="s">a los ${r.finK} meses, baja el saldo</div></div>
-        <div class="fin-card"><div class="l">Fase 2 · cuota/mes</div><div class="v">${fmtEUR(r.finCuota2)}</div><div class="s">resto: ${r.finRem} meses</div></div>
-        <div class="fin-card"><div class="l">Total a pagar</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">${r.finIntereses>0?'incl. '+fmtEUR(r.finIntereses)+' interés':'sin intereses'}</div></div>
+        <div class="fin-card"><div class="l">Capital financiado</div><div class="v">${fmtEUR(r.finPrincipal)}</div><div class="s">coste total${r.finEntrada>0?' − entrada '+fmtEUR(r.finEntrada):''}</div></div>
+        <div class="fin-card"><div class="l">Subvención aplicada</div><div class="v">${fmtEUR(r.finSubvAplic)}</div><div class="s">a los ${r.finK} meses</div></div>
+        <div class="fin-card"><div class="l">Total a pagar</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">${fmtEUR(r.finTotalViv)}/vivienda</div></div>
+        <div class="fin-card"><div class="l">Intereses totales</div><div class="v">${fmtEUR(r.finIntereses)}</div><div class="s">${r.finIm>0?fmtNum(d.finInteres)+' % anual':'sin intereses'}</div></div>
       </div>
-      <div class="fin-foot"><b>Fase 1:</b> ${r.finK} cuotas de ${fmtEUR(r.finCuota1)}/mes (${fmtEUR(r.finCuota1Viv)}/vivienda) sobre el coste total de ${fmtEUR(r.finPrincipal)}. <b>A los ${r.finK} meses</b>, al cobrar las subvenciones (${fmtEUR(r.finSubvAplic)}) el saldo baja a ${fmtEUR(r.finSaldo2)}. <b>Fase 2:</b> ${r.finRem} cuotas de ${fmtEUR(r.finCuota2)}/mes (${fmtEUR(r.finCuota2Viv)}/vivienda). Cuota constante (sistema francés)${r.finIm>0?' al '+fmtNum(d.finInteres)+' % anual':' sin intereses'}. La cuota definitiva depende de la entidad financiera.</div>
+      <div class="fin-foot">Plazo total ${r.finMeses%12===0?(r.finMeses/12)+' años':r.finMeses+' meses'} · cuota constante (sistema francés)${r.finIm>0?' al '+fmtNum(d.finInteres)+' % anual':' sin intereses'}. La cuota se recalcula al cobrar la subvención. La cuota definitiva depende de la entidad financiera.</div>
       `:`
       <div class="fin-hero">
         <span class="big">${fmtEUR(r.finCuotaViv)}</span>
