@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Calculadora de subvenciones a la rehabilitación de edificios — Revestimientos Proyecton SLU.">
-<title>Calculadora de Subvenciones · Proyecton</title>
+<title>Informe orientativo de Subvenciones · Proyecton</title>
 <!--
   ============================================================================
   CALCULADORA DE SUBVENCIONES · PROYECTON GLOBAL ENERGY SL (CIF B86608312)
@@ -168,13 +168,17 @@
   .fin-fases{display:flex;align-items:stretch;gap:10px;padding:16px;flex-wrap:wrap;background:var(--granate-cl);border-bottom:1px solid var(--linea);}
   .fin-fase{flex:1 1 200px;background:#fff;border:1.5px solid var(--linea);border-radius:12px;padding:12px 14px;text-align:center;}
   .fin-fase .et{font-size:10.5px;font-weight:800;text-transform:uppercase;color:var(--gris);letter-spacing:.4px;}
-  .fin-fase .cu{font-size:27px;font-weight:800;line-height:1.02;margin-top:5px;color:var(--granate);}
+  .fin-fase .cu{font-size:27px;font-weight:800;line-height:1.02;margin-top:5px;color:var(--carbon);}
   .fin-fase .cu small{font-size:12px;font-weight:700;}
   .fin-fase .pv{font-size:11.5px;color:var(--carbon);margin-top:3px;}
   .fin-fase .du{font-size:10.5px;color:var(--gris);margin-top:4px;}
-  .fin-fase.f2{border-color:#2f7d3a;} .fin-fase.f2 .cu{color:#2f7d3a;}
+  .fin-fase .yr{display:inline-block;margin-top:2px;font-size:11px;font-weight:800;color:#fff;background:var(--carbon);border-radius:20px;padding:1px 9px;}
+  .fin-fase.f1{border-color:#c9ccd0;background:#fafbfc;}
+  .fin-fase.f2{border-color:#2f7d3a;background:#f2f9f3;} .fin-fase.f2 .cu{color:#2f7d3a;} .fin-fase.f2 .yr{background:#2f7d3a;}
   .fin-flecha{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 6px;min-width:110px;}
-  .fin-flecha .ar{font-size:26px;color:var(--granate);line-height:1;}
+  .fin-flecha .ar{font-size:26px;color:var(--oro);line-height:1;}
+  .fin-resumen{margin:0 16px 12px;padding:11px 14px;border:1px solid var(--linea);border-left:4px solid var(--granate);border-radius:10px;background:var(--granate-cl);font-size:12.5px;color:var(--carbon);line-height:1.5;}
+  .fin-resumen b{color:var(--granate);}
   .fin-flecha .tx{font-size:10.5px;color:var(--gris);text-align:center;margin-top:3px;}
   .fin-flecha .sv{font-weight:800;color:#2f7d3a;font-size:13px;margin-top:1px;}
   @media(max-width:620px){.fin-flecha .ar{transform:rotate(90deg);}}
@@ -1445,6 +1449,8 @@ function renderInforme(){
     if(r.incluyeRehab) avisos+=`<div class="avisobox acc"><span class="ic" aria-hidden="true">♿</span><div><b>Accesibilidad:</b> requisitos habituales del Plan Rehabilita — edificio anterior a 1998 e IEE (Informe de Evaluación del Edificio) registrado antes de solicitar. Compatible con la ayuda estatal de accesibilidad si se tramita por separado.</div></div>`;
     else avisos+=`<div class="avisobox acc"><span class="ic" aria-hidden="true">♿</span><div><b>Accesibilidad:</b> para aplicar el <b>80 %</b> hay que acreditar discapacidad ≥ 33 % o residente mayor de 65 años; en otro caso se aplica el <b>70 %</b>. El tope por vivienda depende del nivel elegido.</div></div>`;
   }
+  if(d.caeInc && r.caeTotal>0) avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">⚡</span><div><b>CAE (Certificados de Ahorro Energético):</b> el importe es una <b>estimación acorde al precio de mercado</b> actual, por lo que es <b>orientativo</b> y puede variar según la cotización en el momento de la venta de los certificados.</div></div>`;
+  avisos+=`<div class="avisobox"><span class="ic" aria-hidden="true">🏛️</span><div><b>Subvenciones sujetas a concesión:</b> las ayudas se otorgan por <b>concurrencia competitiva</b> y hasta agotar el crédito disponible. Este informe es una <b>estimación</b> y <b>no garantiza</b> la concesión ni el importe final.</div></div>`;
 
   // Indicador de viabilidad: SIEMPRE en verde y en tono positivo, pero el texto se adapta a la cobertura real (sin afirmar de más).
   const pctCob=Math.round(r.pctSobreCoste*100);
@@ -1457,10 +1463,11 @@ function renderInforme(){
   $('#informeBody').innerHTML=`
     <div class="doc-head">
       <img class="logo-img" src="https://proyecton.es/wp-content/uploads/2025/08/LOGO_TRANSPARENTE_sombra-scaled.png" alt="Revestimientos Proyecton" onerror="this.style.display='none'">
-      <div><h2>Informe de Subvenciones a la Rehabilitación</h2></div>
+      <div><h2>Informe orientativo de Subvenciones a la Rehabilitación</h2><div style="font-size:12px;color:var(--gris);font-weight:600;margin-top:2px">Estimación orientativa · no es una garantía de concesión</div></div>
       <div class="who"><b>Revestimientos Proyecton SLU</b>CIF B86608312 · Leganés (Madrid)<br>info@proyecton.es</div>
     </div>
     <p class="doc-sub"><b>${d.direccion||'(sin dirección)'}</b> · ${d.municipio||'Madrid'}${(d.distrito&&!/otro/i.test(d.distrito))?' ('+d.distrito+')':''} · ${fmtNum(d.numViv)} viviendas · ${fechaHoy}</p>
+    <div style="margin:8px 0 4px;padding:9px 13px;border-radius:9px;background:#fff7e6;border:1px solid #f0c36d;color:#7a5b00;font-size:12.5px;font-weight:600"><span aria-hidden="true">⚠️</span> <b>Documento ORIENTATIVO.</b> Es una <b>estimación</b> de las ayudas según la normativa vigente, con fines informativos. <b>No supone compromiso ni garantía de concesión</b>; los importes definitivos dependen de la resolución de la administración.</div>
 
     <div class="meta-edif">
       <div><span>Locales</span><b>${fmtNum(d.numLocales)}</b></div>
@@ -1476,7 +1483,7 @@ function renderInforme(){
 
     <div class="kpis">
       <div class="kpi coste"><div class="lbl">🏗️ Coste total comunidad</div><div class="val">${fmtEUR(r.costeReal)}</div><div class="sml">PEM ${fmtEUR(r.e.pem)}</div></div>
-      <div class="kpi subv"><div class="lbl">💶 Ayuda obtenible</div><div class="val">${fmtEUR(r.obtenibleReal)}</div><div class="sml">${fmtPct(r.pctSobreCoste)} del coste</div></div>
+      <div class="kpi subv"><div class="lbl">💶 Ayuda estimada</div><div class="val">${fmtEUR(r.obtenibleReal)}</div><div class="sml">≈ ${fmtPct(r.pctSobreCoste)} del coste (orientativo)</div></div>
       <div class="kpi resto"><div class="lbl">👥 Resto / vivienda</div><div class="val">${fmtEUR(r.restoPorViv)}</div><div class="sml">total ${fmtEUR(r.restoVecinos)}</div></div>
       <div class="kpi via"><div class="lbl">🏠 Ayuda / vivienda</div><div class="val">${fmtEUR(r.subvPorViv)}</div><div class="sml">media estimada</div></div>
     </div>
@@ -1550,7 +1557,7 @@ function renderInforme(){
       ${infoRow('Energía aplicable',fmtEUR(r.grantsCapados),`mín(${fmtEUR(r.grantsBrutos)};${fmtEUR(r.baseEnergia)})`)}
       ${hayAcc?infoRow(r.incluyeRehab?'Plan Rehabilita · Línea Accesible (ascensor)':'Plan Estatal · Accesibilidad',fmtEUR(r.accCapados),r.incluyeRehab?`Ascensor ${fmtEUR(r.acc_cam)}, capado a ${fmtEUR(r.accCoste)} (coste accesibilidad)`:`${fmtEUR(r.acc_est)} (${fmtPct(d.pctAccEstatal/100)} del coste de accesibilidad ${fmtEUR(r.accCoste)})`):''}
       ${infoRow('CAE ('+fmtNum(r.caePct)+'% del coste total)',fmtEUR(r.caeTotal),d.caeInc?(d.cae>0?`Importe manual = ${fmtEUR(r.caeTotal)}`:`${fmtEUR(r.costeReal)} (coste total) × ${fmtNum(r.caePct)}% = ${fmtEUR(r.caeTotal)}`):'No incluido')}
-      <tr class="total"><td>AYUDA TOTAL OBTENIBLE</td><td class="num">${fmtEUR(r.obtenibleReal)}</td></tr>
+      <tr class="total"><td>AYUDA TOTAL ESTIMADA (orientativa)</td><td class="num">${fmtEUR(r.obtenibleReal)}</td></tr>
       ${infoRow('% ayuda sobre PEM',fmtPct(r.pctSobrePEM),`${fmtEUR(r.obtenibleReal)} / ${fmtEUR(r.e.pem)}`)}
       <tr class="total"><td>RESTO A PAGAR POR LOS VECINOS</td><td class="num">${fmtEUR(r.restoVecinos)}</td></tr>
       ${infoRow('Resto por vivienda',fmtEUR(r.restoPorViv),`${fmtEUR(r.restoVecinos)} / ${fmtNum(d.numViv)} viviendas`)}
@@ -1566,30 +1573,33 @@ function renderInforme(){
       ${r.finDosFases?`
       <div class="fin-fases">
         <div class="fin-fase f1">
-          <div class="et">Fase 1 · primeros ${r.finK%12===0?(r.finK/12)+' años':r.finK+' meses'}</div>
+          <div class="et">Fase 1 — al inicio</div>
           <div class="cu">${fmtEUR(r.finCuota1Viv)}<small> /mes·viv</small></div>
           <div class="pv">comunidad ${fmtEUR(r.finCuota1)}/mes</div>
-          <div class="du">se paga sobre el coste total</div>
+          <div class="yr">${r.finK%12===0?(r.finK/12)+' AÑOS':r.finK+' MESES'}</div>
+          <div class="du">sobre el coste total (aún sin subvención)</div>
         </div>
         <div class="fin-flecha">
           <div class="ar">➜</div>
-          <div class="tx">al cobrar la subvención</div>
+          <div class="tx">al cobrar las subvenciones</div>
           <div class="sv">− ${fmtEUR(r.finSubvAplic)}</div>
         </div>
         <div class="fin-fase f2">
-          <div class="et">Fase 2 · resto ${r.finRem%12===0?(r.finRem/12)+' años':r.finRem+' meses'}</div>
+          <div class="et">Fase 2 — después</div>
           <div class="cu">${fmtEUR(r.finCuota2Viv)}<small> /mes·viv</small></div>
           <div class="pv">comunidad ${fmtEUR(r.finCuota2)}/mes</div>
+          <div class="yr">${r.finRem%12===0?(r.finRem/12)+' AÑOS':r.finRem+' MESES'}</div>
           <div class="du">saldo pendiente ${fmtEUR(r.finSaldo2)}</div>
         </div>
       </div>
       <div class="fin-cards">
         <div class="fin-card"><div class="l">Capital financiado</div><div class="v">${fmtEUR(r.finPrincipal)}</div><div class="s">coste total${r.finEntrada>0?' − entrada '+fmtEUR(r.finEntrada):''}</div></div>
-        <div class="fin-card"><div class="l">Subvención aplicada</div><div class="v">${fmtEUR(r.finSubvAplic)}</div><div class="s">a los ${r.finK} meses</div></div>
-        <div class="fin-card"><div class="l">Total a pagar</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">${fmtEUR(r.finTotalViv)}/vivienda</div></div>
-        <div class="fin-card"><div class="l">Intereses totales</div><div class="v">${fmtEUR(r.finIntereses)}</div><div class="s">${r.finIm>0?fmtNum(d.finInteres)+' % anual':'sin intereses'}</div></div>
+        <div class="fin-card"><div class="l">+ Intereses</div><div class="v">${fmtEUR(r.finIntereses)}</div><div class="s">${r.finIm>0?fmtNum(d.finInteres)+' % anual':'sin intereses'}</div></div>
+        <div class="fin-card"><div class="l">= Total a pagar</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">${fmtEUR(r.finTotalViv)}/vivienda</div></div>
+        <div class="fin-card"><div class="l">Subvenciones a recibir</div><div class="v">${fmtEUR(r.obtenibleReal)}</div><div class="s">si se conceden todas</div></div>
       </div>
-      <div class="fin-foot">Plazo total ${r.finMeses%12===0?(r.finMeses/12)+' años':r.finMeses+' meses'} · cuota constante (sistema francés)${r.finIm>0?' al '+fmtNum(d.finInteres)+' % anual':' sin intereses'}. La cuota se recalcula al cobrar la subvención. La cuota definitiva depende de la entidad financiera.</div>
+      <div class="fin-resumen">💡 Se financia un capital de <b>${fmtEUR(r.finPrincipal)}</b> que, sumando los intereses (${fmtEUR(r.finIntereses)}), hace un <b>total a devolver de ${fmtEUR(r.finTotal)}</b>. Durante los <b>primeros ${r.finK%12===0?(r.finK/12)+' años':r.finK+' meses'}</b> se paga la cuota completa; <b>en el caso de que se concedan todas las subvenciones</b> indicadas, la comunidad recibirá <b>${fmtEUR(r.obtenibleReal)}</b>, que se descuentan del saldo y hacen que la cuota baje durante los <b>${r.finRem%12===0?(r.finRem/12)+' años':r.finRem+' meses'} restantes</b>.</div>
+      <div class="fin-foot">Plazo total ${r.finMeses%12===0?(r.finMeses/12)+' años':r.finMeses+' meses'} · cuota constante (sistema francés)${r.finIm>0?' al '+fmtNum(d.finInteres)+' % anual':' sin intereses'}. Las subvenciones están sujetas a concesión; la cuota definitiva depende de la entidad financiera.</div>
       `:`
       <div class="fin-hero">
         <span class="big">${fmtEUR(r.finCuotaViv)}</span>
