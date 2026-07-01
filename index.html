@@ -157,7 +157,7 @@
   .fin-hero{display:flex;align-items:baseline;gap:10px;background:var(--granate-cl);padding:13px 16px;border-bottom:1px solid var(--linea);flex-wrap:wrap;}
   .fin-hero .big{font-size:30px;font-weight:800;color:var(--granate);line-height:1;}
   .fin-hero .cap{font-size:13px;color:var(--carbon);font-weight:600;}
-  .fin-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px;}
+  .fin-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:14px 16px;}
   .fin-card{background:#fff;border:1px solid var(--linea);border-radius:11px;padding:11px 12px;text-align:center;}
   .fin-card .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--gris);font-weight:700;}
   .fin-card .v{font-size:18px;font-weight:800;color:var(--carbon);margin-top:4px;line-height:1.05;}
@@ -1467,7 +1467,6 @@ function renderInforme(){
       <div class="who"><b>Revestimientos Proyecton SLU</b>CIF B86608312 · Leganés (Madrid)<br>info@proyecton.es</div>
     </div>
     <p class="doc-sub"><b>${d.direccion||'(sin dirección)'}</b> · ${d.municipio||'Madrid'}${(d.distrito&&!/otro/i.test(d.distrito))?' ('+d.distrito+')':''} · ${fmtNum(d.numViv)} viviendas · ${fechaHoy}</p>
-    <div style="margin:8px 0 4px;padding:9px 13px;border-radius:9px;background:#fff7e6;border:1px solid #f0c36d;color:#7a5b00;font-size:12.5px;font-weight:600"><span aria-hidden="true">⚠️</span> <b>Documento ORIENTATIVO.</b> Es una <b>estimación</b> de las ayudas según la normativa vigente, con fines informativos. <b>No supone compromiso ni garantía de concesión</b>; los importes definitivos dependen de la resolución de la administración.</div>
 
     <div class="meta-edif">
       <div><span>Locales</span><b>${fmtNum(d.numLocales)}</b></div>
@@ -1593,10 +1592,9 @@ function renderInforme(){
         </div>
       </div>
       <div class="fin-cards">
-        <div class="fin-card"><div class="l">Capital financiado</div><div class="v">${fmtEUR(r.finPrincipal)}</div><div class="s">coste total${r.finEntrada>0?' − entrada '+fmtEUR(r.finEntrada):''}</div></div>
-        <div class="fin-card"><div class="l">+ Intereses</div><div class="v">${fmtEUR(r.finIntereses)}</div><div class="s">${r.finIm>0?fmtNum(d.finInteres)+' % anual':'sin intereses'}</div></div>
-        <div class="fin-card"><div class="l">= Total a pagar</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">${fmtEUR(r.finTotalViv)}/vivienda</div></div>
+        <div class="fin-card"><div class="l">Capital financiado</div><div class="v">${fmtEUR(r.finPrincipal)}</div><div class="s">coste total de la obra</div></div>
         <div class="fin-card"><div class="l">Subvenciones a recibir</div><div class="v">${fmtEUR(r.obtenibleReal)}</div><div class="s">si se conceden todas</div></div>
+        <div class="fin-card"><div class="l">Total que paga la comunidad</div><div class="v">${fmtEUR(r.finTotal)}</div><div class="s">intereses incluidos (${fmtEUR(r.finIntereses)})</div></div>
       </div>
       <div class="fin-resumen">💡 Se financia un capital de <b>${fmtEUR(r.finPrincipal)}</b> que, sumando los intereses (${fmtEUR(r.finIntereses)}), hace un <b>total a devolver de ${fmtEUR(r.finTotal)}</b>. Durante los <b>primeros ${r.finK%12===0?(r.finK/12)+' años':r.finK+' meses'}</b> se paga la cuota completa; <b>en el caso de que se concedan todas las subvenciones</b> indicadas, la comunidad recibirá <b>${fmtEUR(r.obtenibleReal)}</b>, que se descuentan del saldo y hacen que la cuota baje durante los <b>${r.finRem%12===0?(r.finRem/12)+' años':r.finRem+' meses'} restantes</b>.</div>
       <div class="fin-foot">Plazo total ${r.finMeses%12===0?(r.finMeses/12)+' años':r.finMeses+' meses'} · cuota constante (sistema francés)${r.finIm>0?' al '+fmtNum(d.finInteres)+' % anual':' sin intereses'}. Las subvenciones están sujetas a concesión; la cuota definitiva depende de la entidad financiera.</div>
